@@ -53,6 +53,7 @@ const BusTicketing: React.FC = () => {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [passengerName, setPassengerName] = useState('');
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -154,22 +155,28 @@ const BusTicketing: React.FC = () => {
         pickup_point: origin,
         destination: destination,
         price: parseFloat(fare),
+        discount: parseFloat(discount) || 0,
         payment_method: paymentMethod,
         ticket_number: 'BP-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
         date: new Date().toISOString().split('T')[0],
         trip_id: tripId || undefined,
+        passenger_name: passengerName,
       });
       setTicketData({
         busRegistration,
         pickupPoint: origin,
         destination,
         price: fare,
+        discount,
         paymentMethod,
         ticketNumber: newTicket.ticket_number,
         date: new Date().toISOString().split('T')[0],
+        passengerName,
       });
       setShowTicket(true);
       setTickets(await getTickets().then(t => t.filter(ticket => ticket.trip_id === tripId)));
+      setPassengerName(''); // Reset after submit
+      setDiscount('0.00');
     } catch (error) {
       alert('Failed to create ticket.');
     } finally {
@@ -342,6 +349,16 @@ const BusTicketing: React.FC = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <TextField
+                    label="Passenger Name"
+                    value={passengerName}
+                    onChange={e => setPassengerName(e.target.value)}
+                    fullWidth
+                    required
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
                     label="Origin"
                     value={origin}
                     onChange={e => setOrigin(e.target.value)}
@@ -431,7 +448,21 @@ const BusTicketing: React.FC = () => {
                   <TextField label="Fee ($)" type="number" value={luggageForm.fee} onChange={e => setLuggageForm(f => ({ ...f, fee: e.target.value }))} fullWidth size="small" />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                  <TextField label="Passenger" value={luggageForm.passenger} onChange={e => setLuggageForm(f => ({ ...f, passenger: e.target.value }))} fullWidth size="small" />
+                  <TextField
+                    select
+                    label="Passenger"
+                    value={luggageForm.passenger}
+                    onChange={e => setLuggageForm(f => ({ ...f, passenger: e.target.value }))}
+                    fullWidth
+                    size="small"
+                    required
+                  >
+                    {tickets.map((t, idx) => (
+                      <MenuItem key={idx} value={t.passenger_name || t.passengerName || ''}>
+                        {t.passenger_name || t.passengerName || `Passenger #${idx + 1}`}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
                 <Grid item xs={12} md={2}>
                   <Button type="submit" variant="contained" color="primary" fullWidth>Add Luggage</Button>
@@ -538,13 +569,14 @@ const BusTicketing: React.FC = () => {
                       <TableCell>Origin</TableCell>
                       <TableCell>Destination</TableCell>
                       <TableCell>Price</TableCell>
+                      <TableCell>Discount</TableCell>
                       <TableCell>Payment</TableCell>
                       <TableCell>Date</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {tickets.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} align="center">No tickets sold</TableCell></TableRow>
                     ) : (
                       tickets.map((t, idx) => (
                         <TableRow key={idx}>
@@ -552,6 +584,7 @@ const BusTicketing: React.FC = () => {
                           <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
                           <TableCell>{t.destination}</TableCell>
                           <TableCell>{t.price}</TableCell>
+                          <TableCell>{t.discount || '0.00'}</TableCell>
                           <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
                           <TableCell>{t.date}</TableCell>
                         </TableRow>
@@ -585,7 +618,7 @@ const BusTicketing: React.FC = () => {
             <Grid item xs={12} md={3}>
               <Paper sx={{ p: 2, textAlign: 'center', background: '#f5fff5' }}>
                 <Typography variant="subtitle2" color="text.secondary">Revenue</Typography>
-                <Typography variant="h6" fontWeight={700} color="success.main">${summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0).toFixed(2)}</Typography>
+                <Typography variant="h6" fontWeight={700} color="success.main">${summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0).toFixed(2)}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} md={3}>
@@ -597,7 +630,7 @@ const BusTicketing: React.FC = () => {
             <Grid item xs={12} md={3}>
               <Paper sx={{ p: 2, textAlign: 'center', background: '#f5fff5' }}>
                 <Typography variant="subtitle2" color="text.secondary">Profit</Typography>
-                <Typography variant="h6" fontWeight={700} color={summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0) - summaryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) >= 0 ? 'success.main' : 'error.main'}>${(summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0) - summaryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)).toFixed(2)}</Typography>
+                <Typography variant="h6" fontWeight={700} color={summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0) - summaryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) >= 0 ? 'success.main' : 'error.main'}>${(summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0) - summaryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)).toFixed(2)}</Typography>
               </Paper>
             </Grid>
           </Grid>
@@ -612,13 +645,15 @@ const BusTicketing: React.FC = () => {
                     <TableCell>Origin</TableCell>
                     <TableCell>Destination</TableCell>
                     <TableCell>Price</TableCell>
+                    <TableCell>Discount</TableCell>
+                    <TableCell>Net</TableCell>
                     <TableCell>Payment</TableCell>
                     <TableCell>Date</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {summaryTickets.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} align="center">No tickets sold</TableCell></TableRow>
                   ) : (
                     summaryTickets.map((t, idx) => (
                       <TableRow key={idx}>
@@ -626,6 +661,8 @@ const BusTicketing: React.FC = () => {
                         <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
                         <TableCell>{t.destination}</TableCell>
                         <TableCell>{t.price}</TableCell>
+                        <TableCell>{t.discount || '0.00'}</TableCell>
+                        <TableCell>{(parseFloat(t.price) - (parseFloat(t.discount) || 0)).toFixed(2)}</TableCell>
                         <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
                         <TableCell>{t.date}</TableCell>
                       </TableRow>

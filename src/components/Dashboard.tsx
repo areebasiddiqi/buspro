@@ -8,7 +8,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import WorkIcon from '@mui/icons-material/Work';
 import PeopleIcon from '@mui/icons-material/People';
-import { getTickets, getExpenses, getSales, getBuses, getTrips } from '../services/databaseService';
+import { getTickets, getExpenses, getSales, getBuses, getTrips, getLuggage, getTripExpenses } from '../services/databaseService';
 import dayjs from 'dayjs';
 import type { } from '../types/database.types.ts';
 import { useSupabase } from '../contexts/SupabaseContext';
@@ -30,6 +30,8 @@ const Dashboard: React.FC = () => {
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
   const [allBuses, setAllBuses] = useState<any[]>([]);
   const [allTrips, setAllTrips] = useState<any[]>([]);
+  const [allLuggage, setAllLuggage] = useState<any[]>([]);
+  const [allTripExpenses, setAllTripExpenses] = useState<any[]>([]);
   // Restore loading state
   const [loading, setLoading] = useState(true);
 
@@ -95,19 +97,27 @@ const Dashboard: React.FC = () => {
       getSales(),
       getExpenses(),
       getBuses(),
-      getTrips()
-    ]).then(([tickets, sales, expenses, buses, trips]) => {
+      getTrips(),
+      getLuggage(),
+      getTripExpenses()
+    ]).then(([tickets, sales, expenses, buses, trips, luggage, tripExpenses]) => {
       setAllTickets(tickets);
       setAllSales(sales);
       setAllExpenses(expenses);
       setAllBuses(buses);
       setAllTrips(trips);
+      setAllLuggage(luggage);
+      setAllTripExpenses(tripExpenses);
       setLoading(false);
     });
   };
 
   // Recompute metrics and live buses when filters change or data loads
   const { tickets, sales, expenses, buses, trips } = applyFilters();
+  // Filter luggage and trip_expenses for filtered trips
+  const tripIds = trips.map(t => t.id);
+  const luggage = allLuggage.filter(l => l.trip_id && tripIds.includes(l.trip_id));
+  const tripExpenses = allTripExpenses.filter(e => e.trip_id && tripIds.includes(e.trip_id));
   useEffect(() => {
     fetchDashboardData();
     // Subscribe to real-time changes
@@ -116,6 +126,8 @@ const Dashboard: React.FC = () => {
     const ticketsSub = subscribeToChanges('tickets', fetchDashboardData);
     const salesSub = subscribeToChanges('sales', fetchDashboardData);
     const expensesSub = subscribeToChanges('expenses', fetchDashboardData);
+    const luggageSub = subscribeToChanges('luggage', fetchDashboardData);
+    const tripExpensesSub = subscribeToChanges('trip_expenses', fetchDashboardData);
     // Auto-refresh timer
     let interval: NodeJS.Timeout | undefined;
     if (autoRefresh) {
@@ -130,6 +142,8 @@ const Dashboard: React.FC = () => {
       ticketsSub.unsubscribe();
       salesSub.unsubscribe();
       expensesSub.unsubscribe();
+      luggageSub.unsubscribe();
+      tripExpensesSub.unsubscribe();
       if (interval) clearInterval(interval);
     };
   }, [autoRefresh, refreshInterval]);
@@ -141,8 +155,15 @@ const Dashboard: React.FC = () => {
 
   // Metrics
   const totalTickets = tickets.length;
-  const totalRevenue = sales.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+  const totalTicketRevenue = tickets.reduce((sum, t) => {
+    const price = typeof t.price === 'number' ? t.price : parseFloat(t.price);
+    const discount = typeof t.discount === 'number' ? t.discount : parseFloat(t.discount) || 0;
+    return sum + (price - discount);
+  }, 0);
+  const totalLuggageRevenue = luggage.reduce((sum, l) => sum + (typeof l.fee === 'number' ? l.fee : parseFloat(l.fee) || 0), 0);
+  const totalRevenue = totalTicketRevenue + totalLuggageRevenue;
+  const totalTripExpenses = allTripExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0) + totalTripExpenses;
   const activeTrips = trips.filter(t => t.status === 'active');
   const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
   const liveBuses = buses.filter(b => liveBusRegs.has(b.registration));
@@ -151,6 +172,13 @@ const Dashboard: React.FC = () => {
   // Add luggage and passengers metrics
   const totalLuggage = tickets.reduce((sum, t) => sum + (t.luggage_count || 0), 0); // If luggage_count is not available, use luggageList.length if you fetch luggage
   const totalPassengers = totalTickets;
+
+  // For each live bus, compute stats
+  const busToActiveTripIds: Record<string, string[]> = {};
+  activeTrips.forEach(trip => {
+    if (!busToActiveTripIds[trip.bus_registration]) busToActiveTripIds[trip.bus_registration] = [];
+    busToActiveTripIds[trip.bus_registration].push(trip.id);
+  });
 
   // Export helpers
   const handleExportJSON = () => {
@@ -344,17 +372,29 @@ const Dashboard: React.FC = () => {
                         <TableCell>Model</TableCell>
                         <TableCell>Status</TableCell>
                         <TableCell>Last Ticket Time</TableCell>
+                        <TableCell>Passengers</TableCell>
+                        <TableCell>Luggage</TableCell>
+                        <TableCell>Expenses</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {liveBuses.map(bus => (
-                        <TableRow key={bus.id}>
-                          <TableCell>{bus.registration}</TableCell>
-                          <TableCell>{bus.model}</TableCell>
-                          <TableCell>{bus.status}</TableCell>
-                          <TableCell>{dayjs(bus.lastTicketTime).format('YYYY-MM-DD HH:mm')}</TableCell>
-                        </TableRow>
-                      ))}
+                      {liveBuses.map(bus => {
+                        const tripIds = busToActiveTripIds[bus.registration] || [];
+                        const passengers = tickets.filter(t => t.bus_registration === bus.registration && tripIds.includes(t.trip_id)).length;
+                        const luggageCount = luggage.filter(l => tripIds.includes(l.trip_id)).length;
+                        const expensesSum = tripExpenses.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+                        return (
+                          <TableRow key={bus.id}>
+                            <TableCell>{bus.registration}</TableCell>
+                            <TableCell>{bus.model}</TableCell>
+                            <TableCell>{bus.status}</TableCell>
+                            <TableCell>{bus.lastTicketTime ? dayjs(bus.lastTicketTime).format('YYYY-MM-DD HH:mm') : ''}</TableCell>
+                            <TableCell>{passengers}</TableCell>
+                            <TableCell>{luggageCount}</TableCell>
+                            <TableCell>${expensesSum.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
