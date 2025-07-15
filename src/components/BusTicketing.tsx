@@ -129,6 +129,9 @@ const BusTicketing: React.FC = () => {
     });
     setTripId(trip.id);
     setTripActive(true);
+    setTickets([]); // Reset tickets for new trip
+    setLuggageList([]); // Reset luggage for new trip
+    setExpensesList([]); // Reset expenses for new trip
   };
   const handleEndTrip = async () => {
     if (tripId) {
@@ -136,7 +139,7 @@ const BusTicketing: React.FC = () => {
     }
     setTripActive(false);
     setShowTripSummary(true);
-    setTripId(null);
+    // Do NOT setTripId(null) here
   };
   const handleLockToggle = () => setLocked(l => !l);
   const handlePrinterToggle = () => setPrinterConnected(p => !p);
@@ -412,7 +415,7 @@ const BusTicketing: React.FC = () => {
                 fee: parseFloat(luggageForm.fee),
                 passenger: luggageForm.passenger,
                 trip_id: tripId || undefined,
-                ticket_id: '', // Optionally link to a ticket if available
+                ticket_id: undefined, // Optionally link to a ticket if available
               });
               setLuggageForm({ description: '', weight: '', fee: '', passenger: '' });
               setLuggageList(await getLuggage().then(l => l.filter(item => item.trip_id === tripId)));
@@ -566,7 +569,10 @@ const BusTicketing: React.FC = () => {
         {ticketData && <TicketPreview ticketData={ticketData} />}
       </Dialog>
 
-      <Dialog open={showTripSummary} onClose={() => setShowTripSummary(false)} maxWidth="sm" fullWidth>
+      <Dialog open={showTripSummary} onClose={() => {
+        setShowTripSummary(false);
+        setTripId(null); // Clear tripId only after closing the summary
+      }} maxWidth="sm" fullWidth>
         <Paper sx={{ p: 4 }}>
           <Typography variant="h5" fontWeight={700} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Trip Summary</Typography>
           <Grid container spacing={2} mb={2}>

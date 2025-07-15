@@ -6,21 +6,20 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import WorkIcon from '@mui/icons-material/Work';
+import PeopleIcon from '@mui/icons-material/People';
 import { getTickets, getExpenses, getSales, getBuses, getTrips } from '../services/databaseService';
 import dayjs from 'dayjs';
-import type { Bus } from '../types/database.types.ts';
+import type { } from '../types/database.types.ts';
 import { useSupabase } from '../contexts/SupabaseContext';
 
-const busFilters = ['All Buses', 'Bus 1', 'Bus 2'];
-const timeRanges = ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days'];
-const refreshIntervals = ['30s', '1m', '5m'];
 
 const Dashboard: React.FC = () => {
   const { subscribeToChanges } = useSupabase();
   const [tab, setTab] = useState(0);
-  const [busFilter, setBusFilter] = useState(busFilters[0]);
-  const [timeRange, setTimeRange] = useState(timeRanges[0]);
-  const [refreshInterval, setRefreshInterval] = useState(refreshIntervals[0]);
+  const [busFilter, setBusFilter] = useState('All Buses');
+  const [timeRange, setTimeRange] = useState('Last 24 Hours');
+  const [refreshInterval, setRefreshInterval] = useState('30s');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeOnly, setActiveOnly] = useState(false);
   const [search, setSearch] = useState('');
@@ -31,6 +30,11 @@ const Dashboard: React.FC = () => {
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
   const [allBuses, setAllBuses] = useState<any[]>([]);
   const [allTrips, setAllTrips] = useState<any[]>([]);
+  // Restore loading state
+  const [loading, setLoading] = useState(true);
+
+  const timeRanges = ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days'];
+  const refreshIntervals = ['10s', '30s', '1m', '5m'];
 
   // Helper to get date threshold
   const getDateThreshold = () => {
@@ -112,14 +116,23 @@ const Dashboard: React.FC = () => {
     const ticketsSub = subscribeToChanges('tickets', fetchDashboardData);
     const salesSub = subscribeToChanges('sales', fetchDashboardData);
     const expensesSub = subscribeToChanges('expenses', fetchDashboardData);
+    // Auto-refresh timer
+    let interval: NodeJS.Timeout | undefined;
+    if (autoRefresh) {
+      let ms = 30000;
+      if (refreshInterval.endsWith('s')) ms = parseInt(refreshInterval) * 1000;
+      else if (refreshInterval.endsWith('m')) ms = parseInt(refreshInterval) * 60 * 1000;
+      interval = setInterval(fetchDashboardData, ms);
+    }
     return () => {
       tripsSub.unsubscribe();
       busesSub.unsubscribe();
       ticketsSub.unsubscribe();
       salesSub.unsubscribe();
       expensesSub.unsubscribe();
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [autoRefresh, refreshInterval]);
   // Recompute on filter change
   useEffect(() => {
     // No need to refetch, just recompute
@@ -130,8 +143,42 @@ const Dashboard: React.FC = () => {
   const totalTickets = tickets.length;
   const totalRevenue = sales.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
-  const activeBuses = buses.length;
-  const liveBuses = buses;
+  const activeTrips = trips.filter(t => t.status === 'active');
+  const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
+  const liveBuses = buses.filter(b => liveBusRegs.has(b.registration));
+  const activeBuses = liveBuses.length;
+
+  // Add luggage and passengers metrics
+  const totalLuggage = tickets.reduce((sum, t) => sum + (t.luggage_count || 0), 0); // If luggage_count is not available, use luggageList.length if you fetch luggage
+  const totalPassengers = totalTickets;
+
+  // Export helpers
+  const handleExportJSON = () => {
+    const dataStr = JSON.stringify(liveBuses, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'live_buses.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const handleExportCSV = () => {
+    if (!liveBuses.length) return;
+    const headers = Object.keys(liveBuses[0]);
+    const csvRows = [headers.join(',')];
+    for (const row of liveBuses) {
+      csvRows.push(headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
+    }
+    const csvStr = csvRows.join('\n');
+    const blob = new Blob([csvStr], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'live_buses.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Box>
@@ -166,7 +213,7 @@ const Dashboard: React.FC = () => {
               onChange={e => setBusFilter(e.target.value)}
               size="small"
             >
-              {busFilters.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              {['All Buses', ...allBuses.map(b => b.registration)].map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
             </TextField>
           </Grid>
           <Grid item xs={12} md={2}>
@@ -178,7 +225,7 @@ const Dashboard: React.FC = () => {
               onChange={e => setTimeRange(e.target.value)}
               size="small"
             >
-              {timeRanges.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              {timeRanges.map((r: string) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
             </TextField>
           </Grid>
           <Grid item xs={12} md={2}>
@@ -191,12 +238,12 @@ const Dashboard: React.FC = () => {
               size="small"
               InputProps={{ endAdornment: <RefreshIcon fontSize="small" /> }}
             >
-              {refreshIntervals.map(i => <MenuItem key={i} value={i}>{i}</MenuItem>)}
+              {refreshIntervals.map((i: string) => <MenuItem key={i} value={i}>{i}</MenuItem>)}
             </TextField>
           </Grid>
           <Grid item xs={12} md={3}>
-            <Button variant="outlined" startIcon={<DownloadIcon />} sx={{ mr: 1 }}>Export JSON</Button>
-            <Button variant="outlined" startIcon={<DownloadIcon />}>Export CSV</Button>
+            <Button variant="outlined" startIcon={<DownloadIcon />} sx={{ mr: 1 }} onClick={handleExportJSON}>Export JSON</Button>
+            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportCSV}>Export CSV</Button>
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControlLabel
@@ -212,40 +259,52 @@ const Dashboard: React.FC = () => {
       </Paper>
 
       <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <ReceiptIcon color="primary" fontSize="large" />
             <Box>
               <Typography variant="subtitle2" color="text.secondary">Total Tickets</Typography>
-              <Typography variant="h6" fontWeight={700}>
-                {loading ? <CircularProgress size={20} /> : totalTickets}
-              </Typography>
+              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalTickets}</Typography>
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <TrendingUpIcon color="success" fontSize="large" />
             <Box>
               <Typography variant="subtitle2" color="text.secondary">Total Revenue</Typography>
-              <Typography variant="h6" fontWeight={700} color="success.main">
-                {loading ? <CircularProgress size={20} /> : `$${totalRevenue?.toFixed(2)}`}
-              </Typography>
+              <Typography variant="h6" fontWeight={700} color="success.main">{loading ? <CircularProgress size={20} /> : `$${totalRevenue?.toFixed(2)}`}</Typography>
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <TrendingDownIcon color="error" fontSize="large" />
             <Box>
               <Typography variant="subtitle2" color="text.secondary">Total Expenses</Typography>
-              <Typography variant="h6" fontWeight={700} color="error.main">
-                {loading ? <CircularProgress size={20} /> : `$${totalExpenses?.toFixed(2)}`}
-              </Typography>
+              <Typography variant="h6" fontWeight={700} color="error.main">{loading ? <CircularProgress size={20} /> : `$${totalExpenses?.toFixed(2)}`}</Typography>
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2}>
+          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <WorkIcon color="secondary" fontSize="large" />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Total Luggage</Typography>
+              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalLuggage}</Typography>
+            </Box>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PeopleIcon color="info" fontSize="large" />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Passengers</Typography>
+              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalPassengers}</Typography>
+            </Box>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <DirectionsBusIcon color="secondary" fontSize="large" />
             <Box>
