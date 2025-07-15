@@ -38,8 +38,32 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
   };
 
   const handlePrint = async () => {
+    // Map ticketData to ReceiptData
+    const receiptData = {
+      ticketNumber: ticketData.ticketNumber,
+      busRegistration: ticketData.busRegistration,
+      driverName: '',
+      conductorName: '',
+      busContactNumber: '',
+      origin: ticketData.pickupPoint,
+      destination: ticketData.destination,
+      departureDate: ticketData.date,
+      departureTime: '',
+      passengerName: ticketData.passengerName || '',
+      passengerPhone: '',
+      seatNumber: '',
+      price: parseFloat(ticketData.price),
+      discount: parseFloat(ticketData.discount || '0'),
+      totalPrice: parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0'),
+      paymentMethod: ticketData.paymentMethod,
+      issueDate: ticketData.date,
+      issueTime: '',
+      issueLocation: '',
+      agentName: '',
+      isQuickMode: false,
+    };
     try {
-      await printThermalReceipt(ticketData);
+      await printThermalReceipt(receiptData);
     } catch (err: any) {
       alert('Failed to print ticket: ' + (err?.message || err));
     }
@@ -155,8 +179,47 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
         <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownload} size="small" sx={{ mr: 1 }}>
           Download
         </Button>
-        <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint} size="small">
+        <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint} size="small" sx={{ mr: 1 }}>
           Print
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<PrintIcon />}
+          onClick={() => {
+            const ticketText = `\nBus Pro Ticket\nTicket #: ${ticketData.ticketNumber}\nPassenger: ${ticketData.passengerName || '-'}\nBus Reg: ${ticketData.busRegistration}\nDate: ${ticketData.date}\nFrom: ${ticketData.pickupPoint}\nTo: ${ticketData.destination}\nPrice: $${ticketData.price}\nDiscount: ${ticketData.discount ? `-$${ticketData.discount}` : '$0.00'}\nTotal: $${(parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0')).toFixed(2)}\nPayment: ${ticketData.paymentMethod.toUpperCase()}\n`;
+            if (navigator.share) {
+              navigator.share({
+                title: 'Print Ticket',
+                text: ticketText,
+              });
+            } else {
+              alert('Web Share API not supported on this device.');
+            }
+          }}
+          size="small"
+          sx={{ mr: 1 }}
+        >
+          Print via Android App
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<PrintIcon />}
+          onClick={async () => {
+            const ticketText = `\nBus Pro Ticket\nTicket #: ${ticketData.ticketNumber}\nPassenger: ${ticketData.passengerName || '-'}\nBus Reg: ${ticketData.busRegistration}\nDate: ${ticketData.date}\nFrom: ${ticketData.pickupPoint}\nTo: ${ticketData.destination}\nPrice: $${ticketData.price}\nDiscount: ${ticketData.discount ? `-$${ticketData.discount}` : '$0.00'}\nTotal: $${(parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0')).toFixed(2)}\nPayment: ${ticketData.paymentMethod.toUpperCase()}\n`;
+            try {
+              await fetch('http://127.0.0.1:9100/print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: ticketText,
+              });
+              alert('Sent to RawBT for printing!');
+            } catch (err) {
+              alert('Failed to send to RawBT. Make sure RawBT HTTP server is enabled and you are running in RawBT browser.');
+            }
+          }}
+          size="small"
+        >
+          Print via RawBT
         </Button>
       </Box>
     </Box>
