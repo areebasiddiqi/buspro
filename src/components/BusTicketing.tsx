@@ -1,9 +1,12 @@
+interface Navigator {
+  bluetooth?: any;
+}
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from '../contexts/SupabaseContext';
 import { createTicket, createSale, getTickets, getBuses, getLuggage, createLuggage, getTripExpenses, createTripExpense, getTrips, createTrip, getRoutes } from '../services/databaseService';
 import type { Ticket as TicketType, Bus, Route } from '../types/database.types.ts';
 import { 
-  Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell
+  Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell, Autocomplete
 } from '@mui/material';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -29,7 +32,6 @@ const BusTicketing: React.FC = () => {
   const [conductorName, setConductorName] = useState('');
   const [locked, setLocked] = useState(false);
   const [tripActive, setTripActive] = useState(false);
-  const [printerConnected, setPrinterConnected] = useState(false);
   const [tab, setTab] = useState(0);
   const [quickMode, setQuickMode] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -56,7 +58,6 @@ const BusTicketing: React.FC = () => {
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [passengerName, setPassengerName] = useState('');
-  const [bluetoothDevice, setBluetoothDevice] = useState<BluetoothDevice | null>(null);
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -146,28 +147,6 @@ const BusTicketing: React.FC = () => {
     // Do NOT setTripId(null) here
   };
   const handleLockToggle = () => setLocked(l => !l);
-  const handlePrinterToggle = () => setPrinterConnected(p => !p);
-
-  // Web Bluetooth connect logic
-  const connectBluetoothPrinter = async () => {
-    if (!navigator.bluetooth) {
-      alert('Web Bluetooth API is not supported in this browser.');
-      return;
-    }
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        // You may need to adjust filters for your printer
-        acceptAllDevices: true,
-        optionalServices: [] // Add service UUIDs if known
-      });
-      setBluetoothDevice(device);
-      setPrinterConnected(true);
-      alert('Bluetooth printer connected: ' + device.name);
-    } catch (error: any) {
-      alert('Failed to connect: ' + (error?.message || error));
-      setPrinterConnected(false);
-    }
-  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -204,7 +183,7 @@ const BusTicketing: React.FC = () => {
       setPassengerName(''); // Reset after submit
       setDiscount('0.00');
       // Print to Bluetooth printer if connected
-      if (printerConnected) {
+      if (true) { // Always print for now, as printer connection is removed
         try {
           await printThermalReceipt(ticketForPrint);
         } catch (err) {
@@ -230,7 +209,6 @@ const BusTicketing: React.FC = () => {
         </Box>
         <Box display="flex" alignItems="center" gap={2}>
           <Chip label={tripActive ? 'Trip Active' : 'No Active Trip'} color={tripActive ? 'success' : 'default'} size="small" />
-          <Chip label={printerConnected ? (bluetoothDevice?.name ? `Connected: ${bluetoothDevice.name}` : 'Connected') : 'Disconnected'} color={printerConnected ? 'success' : 'default'} size="small" onClick={printerConnected ? undefined : connectBluetoothPrinter} icon={<PrintIcon />} />
         </Box>
       </Paper>
 
@@ -246,40 +224,45 @@ const BusTicketing: React.FC = () => {
         </Box>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
+            <Autocomplete
+              freeSolo
+              options={buses.map(bus => bus.registration)}
+              value={busRegistration}
+              onInputChange={(_, newValue) => setBusRegistration(newValue)}
+              renderInput={(params) => (
               <TextField
-              select
+                  {...params}
                 label="Bus Registration"
-                value={busRegistration}
-              onChange={e => setBusRegistration(e.target.value)}
                 fullWidth
                 required
               disabled={locked}
               size="small"
               placeholder="e.g., ABC-123"
-            >
-              {buses.map(bus => (
-                <MenuItem key={bus.id} value={bus.registration}>{bus.registration} {bus.model ? `- ${bus.model}` : ''}</MenuItem>
-                ))}
-              </TextField>
+                />
+              )}
+            />
             </Grid>
             <Grid item xs={12} md={6}>
+            <Autocomplete
+              freeSolo
+              options={routes.map(route => route.name)}
+              value={selectedRoute ? selectedRoute.name : ''}
+              onInputChange={(_, newValue) => {
+                setSelectedRouteId('');
+                setSelectedRoute(newValue ? { id: '', name: newValue, start_point: '', end_point: '', distance: 0, fare: 0 } : null);
+              }}
+              renderInput={(params) => (
               <TextField
-              select
+                  {...params}
               label="Route"
-              value={selectedRouteId}
-              onChange={e => setSelectedRouteId(e.target.value)}
                 fullWidth
+                  required
               disabled={locked}
               size="small"
-                required
-              placeholder="Select route"
-            >
-              {routes.map(route => (
-                <MenuItem key={route.id} value={route.id}>
-                  {route.name} ({route.start_point} → {route.end_point})
-                  </MenuItem>
-                ))}
-              </TextField>
+                  placeholder="Enter or select route"
+                />
+              )}
+            />
             </Grid>
           <Grid item xs={12} md={6}>
             <TextField
@@ -350,19 +333,6 @@ const BusTicketing: React.FC = () => {
             </Button>
           </>
         )}
-      </Paper>
-
-      {/* Thermal Printer */}
-      <Paper sx={{ p: 3, mb: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
-            <PrintIcon sx={{ mr: 1 }} /> Thermal Printer
-          </Typography>
-          <Chip label={printerConnected ? (bluetoothDevice?.name ? `Connected: ${bluetoothDevice.name}` : 'Connected') : 'Disconnected'} color={printerConnected ? 'success' : 'default'} size="small" onClick={printerConnected ? undefined : connectBluetoothPrinter} />
-        </Box>
-        <Button variant="contained" color="primary" startIcon={<PrintIcon />} fullWidth onClick={printerConnected ? handlePrinterToggle : connectBluetoothPrinter}>
-          {printerConnected ? 'Disconnect Printer' : 'Connect Bluetooth Printer'}
-        </Button>
       </Paper>
 
       {/* Tabs */}

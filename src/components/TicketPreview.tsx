@@ -3,7 +3,6 @@ import { Paper, Typography, Grid, Box, Button } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import html2canvas from 'html2canvas';
-import { printThermalReceipt } from '../lib/printer-service';
 
 interface TicketPreviewProps {
   ticketData: {
@@ -21,11 +20,58 @@ interface TicketPreviewProps {
 
 const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
   const ticketRef = useRef<HTMLDivElement>(null);
+  const [device, setDevice] = useState<BluetoothDevice | null>(null);
+  const [characteristic, setCharacteristic] = useState<BluetoothRemoteGATTCharacteristic | null>(null);
 
-  // Calculate total price
-  const priceNum = parseFloat(ticketData.price || '0');
-  const discountNum = parseFloat(ticketData.discount || '0');
-  const total = (priceNum - discountNum).toFixed(2);
+  const connectToPrinter = async () => {
+    try {
+      console.log('Requesting Bluetooth device...');
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }], // Common service for thermal printers
+        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+      });
+      console.log('Connecting to GATT server...');
+      const server = await device.gatt?.connect();
+      console.log('Getting primary service...');
+      const service = await server?.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+      console.log('Getting characteristic...');
+      const char = await service?.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb'); // Common characteristic for printing
+      setDevice(device);
+      setCharacteristic(char);
+      alert('Connected to printer!');
+      console.log('Successfully connected to printer:', device.name);
+    } catch (error) {
+      console.error('Bluetooth connection failed:', error);
+      alert('Failed to connect: ' + error.message);
+    }
+  };
+
+  const printTicket = async () => {
+    if (!characteristic) {
+      alert('Please connect to printer first!');
+      return;
+    }
+    try {
+      console.log('Attempting to print ticket...');
+      const encoder = new TextEncoder();
+      let commands = [];
+
+      // Test string to ensure basic printing works
+      commands.push(encoder.encode('Hello, Printer!\n\n\n'));
+      // Cut paper command (GS V 0)
+      commands.push(encoder.encode('\x1D\x56\x00'));
+
+      for (const cmd of commands) {
+        console.log('Writing command:', cmd);
+        await characteristic.writeValue(cmd);
+      }
+      alert('Test print command sent!');
+      console.log('Test print command sent successfully.');
+    } catch (error) {
+      console.error('Printing failed:', error);
+      alert('Failed to print: ' + error.message);
+    }
+  };
 
   const handleDownload = async () => {
     if (ticketRef.current) {
@@ -34,38 +80,6 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
       link.download = `ticket-${ticketData.ticketNumber}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    }
-  };
-
-  const handlePrint = async () => {
-    // Map ticketData to ReceiptData
-    const receiptData = {
-      ticketNumber: ticketData.ticketNumber,
-      busRegistration: ticketData.busRegistration,
-      driverName: '',
-      conductorName: '',
-      busContactNumber: '',
-      origin: ticketData.pickupPoint,
-      destination: ticketData.destination,
-      departureDate: ticketData.date,
-      departureTime: '',
-      passengerName: ticketData.passengerName || '',
-      passengerPhone: '',
-      seatNumber: '',
-      price: parseFloat(ticketData.price),
-      discount: parseFloat(ticketData.discount || '0'),
-      totalPrice: parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0'),
-      paymentMethod: ticketData.paymentMethod,
-      issueDate: ticketData.date,
-      issueTime: '',
-      issueLocation: '',
-      agentName: '',
-      isQuickMode: false,
-    };
-    try {
-      await printThermalReceipt(receiptData);
-    } catch (err: any) {
-      alert('Failed to print ticket: ' + (err?.message || err));
     }
   };
 
@@ -152,14 +166,6 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
             </Grid>
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">
-                Total
-              </Typography>
-              <Typography variant="body1" gutterBottom fontWeight={700}>
-                ${total}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary">
                 Payment Method
               </Typography>
               <Typography variant="body1" gutterBottom>
@@ -179,47 +185,8 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
         <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownload} size="small" sx={{ mr: 1 }}>
           Download
         </Button>
-        <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint} size="small" sx={{ mr: 1 }}>
-          Print
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<PrintIcon />}
-          onClick={() => {
-            const ticketText = `\nBus Pro Ticket\nTicket #: ${ticketData.ticketNumber}\nPassenger: ${ticketData.passengerName || '-'}\nBus Reg: ${ticketData.busRegistration}\nDate: ${ticketData.date}\nFrom: ${ticketData.pickupPoint}\nTo: ${ticketData.destination}\nPrice: $${ticketData.price}\nDiscount: ${ticketData.discount ? `-$${ticketData.discount}` : '$0.00'}\nTotal: $${(parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0')).toFixed(2)}\nPayment: ${ticketData.paymentMethod.toUpperCase()}\n`;
-            if (navigator.share) {
-              navigator.share({
-                title: 'Print Ticket',
-                text: ticketText,
-              });
-            } else {
-              alert('Web Share API not supported on this device.');
-            }
-          }}
-          size="small"
-          sx={{ mr: 1 }}
-        >
-          Print via Android App
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<PrintIcon />}
-          onClick={async () => {
-            const ticketText = `\nBus Pro Ticket\nTicket #: ${ticketData.ticketNumber}\nPassenger: ${ticketData.passengerName || '-'}\nBus Reg: ${ticketData.busRegistration}\nDate: ${ticketData.date}\nFrom: ${ticketData.pickupPoint}\nTo: ${ticketData.destination}\nPrice: $${ticketData.price}\nDiscount: ${ticketData.discount ? `-$${ticketData.discount}` : '$0.00'}\nTotal: $${(parseFloat(ticketData.price) - parseFloat(ticketData.discount || '0')).toFixed(2)}\nPayment: ${ticketData.paymentMethod.toUpperCase()}\n`;
-            try {
-              await fetch('http://127.0.0.1:9100/print', {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: ticketText,
-              });
-              alert('Sent to RawBT for printing!');
-            } catch (err) {
-              alert('Failed to send to RawBT. Make sure RawBT HTTP server is enabled and you are running in RawBT browser.');
-            }
-          }}
-          size="small"
-        >
-          Print via RawBT
+        <Button variant="outlined" startIcon={<PrintIcon />} onClick={device ? printTicket : connectToPrinter} size="small">
+          {device ? 'Print Test' : 'Connect & Print'}
         </Button>
       </Box>
     </Box>
