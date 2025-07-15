@@ -3,8 +3,9 @@ import { useSupabase } from '../contexts/SupabaseContext';
 import { createTicket, createSale, getTickets, getBuses, getLuggage, createLuggage, getTripExpenses, createTripExpense, getTrips, createTrip, getRoutes } from '../services/databaseService';
 import type { Ticket as TicketType, Bus, Route } from '../types/database.types.ts';
 import { 
-  Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, FormControlLabel, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell
+  Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell
 } from '@mui/material';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
 import PrintIcon from '@mui/icons-material/Print';
@@ -17,6 +18,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TicketPreview from './TicketPreview';
 import dayjs from 'dayjs';
+import { printThermalReceipt } from '../lib/printer-service';
 
 const tabLabels = ['Passenger', 'Luggage', 'Expenses', 'Manifest'];
 
@@ -184,21 +186,39 @@ const BusTicketing: React.FC = () => {
         trip_id: tripId || undefined,
         passenger_name: passengerName,
       });
-      setTicketData({
-        busRegistration,
-        pickupPoint: origin,
-        destination,
-        price: fare,
-        discount,
-        paymentMethod,
+      const now = new Date();
+      const ticketForPrint = {
         ticketNumber: newTicket.ticket_number,
-        date: new Date().toISOString().split('T')[0],
+        busRegistration,
+        driverName,
+        conductorName,
+        origin,
+        destination,
         passengerName,
-      });
+        price: parseFloat(fare),
+        discount: parseFloat(discount) || 0,
+        totalPrice: parseFloat(fare) - (parseFloat(discount) || 0),
+        paymentMethod,
+        issueDate: now.toISOString().split('T')[0],
+        issueTime: now.toLocaleTimeString(),
+        issueLocation: 'Onboard',
+        agentName: conductorName,
+        departureDate: now.toISOString().split('T')[0],
+        departureTime: now.toLocaleTimeString(),
+      };
+      setTicketData(ticketForPrint);
       setShowTicket(true);
       setTickets(await getTickets().then(t => t.filter(ticket => ticket.trip_id === tripId)));
       setPassengerName(''); // Reset after submit
       setDiscount('0.00');
+      // Print to Bluetooth printer if connected
+      if (printerConnected) {
+        try {
+          await printThermalReceipt(ticketForPrint);
+        } catch (err) {
+          alert('Failed to print ticket: ' + (err?.message || err));
+        }
+      }
     } catch (error) {
       alert('Failed to create ticket.');
     } finally {
@@ -621,7 +641,27 @@ const BusTicketing: React.FC = () => {
       </Paper>
 
       <Dialog open={showTicket} onClose={() => setShowTicket(false)} maxWidth="sm" fullWidth>
-        {ticketData && <TicketPreview ticketData={ticketData} />}
+        {ticketData && (
+          <>
+            <TicketPreview ticketData={ticketData} />
+            <Box mt={2} textAlign="right">
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<PrintIcon />}
+                onClick={async () => {
+                  try {
+                    await printThermalReceipt(ticketData);
+                  } catch (err) {
+                    alert('Failed to print ticket: ' + (err?.message || err));
+                  }
+                }}
+              >
+                Print Ticket
+              </Button>
+            </Box>
+          </>
+        )}
       </Dialog>
 
       <Dialog open={showTripSummary} onClose={() => {
