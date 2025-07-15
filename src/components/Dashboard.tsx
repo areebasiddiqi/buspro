@@ -9,12 +9,14 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { getTickets, getExpenses, getSales, getBuses, getTrips } from '../services/databaseService';
 import dayjs from 'dayjs';
 import type { Bus } from '../types/database.types.ts';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 const busFilters = ['All Buses', 'Bus 1', 'Bus 2'];
 const timeRanges = ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days'];
 const refreshIntervals = ['30s', '1m', '5m'];
 
 const Dashboard: React.FC = () => {
+  const { subscribeToChanges } = useSupabase();
   const [tab, setTab] = useState(0);
   const [busFilter, setBusFilter] = useState(busFilters[0]);
   const [timeRange, setTimeRange] = useState(timeRanges[0]);
@@ -23,15 +25,66 @@ const Dashboard: React.FC = () => {
   const [activeOnly, setActiveOnly] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Metrics state
-  const [totalTickets, setTotalTickets] = useState<number | null>(null);
-  const [totalRevenue, setTotalRevenue] = useState<number | null>(null);
-  const [totalExpenses, setTotalExpenses] = useState<number | null>(null);
-  const [activeBuses, setActiveBuses] = useState<number>(0); // Placeholder
-  const [loading, setLoading] = useState(true);
-  const [liveBuses, setLiveBuses] = useState<Array<Bus & { lastTicketTime: string }>>([]);
+  // Add state for all fetched data
+  const [allTickets, setAllTickets] = useState<any[]>([]);
+  const [allSales, setAllSales] = useState<any[]>([]);
+  const [allExpenses, setAllExpenses] = useState<any[]>([]);
+  const [allBuses, setAllBuses] = useState<any[]>([]);
+  const [allTrips, setAllTrips] = useState<any[]>([]);
 
-  useEffect(() => {
+  // Helper to get date threshold
+  const getDateThreshold = () => {
+    const now = new Date();
+    if (timeRange === 'Last 24 Hours') {
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    } else if (timeRange === 'Last 7 Days') {
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (timeRange === 'Last 30 Days') {
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    return null;
+  };
+
+  const applyFilters = () => {
+    let tickets = allTickets;
+    let sales = allSales;
+    let expenses = allExpenses;
+    let buses = allBuses;
+    let trips = allTrips;
+    const dateThreshold = getDateThreshold();
+    // Time range filter
+    if (dateThreshold) {
+      tickets = tickets.filter(t => new Date(t.created_at || t.date) >= dateThreshold);
+      sales = sales.filter(s => new Date(s.created_at || s.date) >= dateThreshold);
+      expenses = expenses.filter(e => new Date(e.created_at || e.date) >= dateThreshold);
+      trips = trips.filter(trip => new Date(trip.start_time) >= dateThreshold);
+    }
+    // Bus filter
+    if (busFilter !== 'All Buses') {
+      tickets = tickets.filter(t => t.bus_registration === busFilter);
+      sales = sales.filter(s => s.bus_id === busFilter || s.bus_registration === busFilter);
+      expenses = expenses.filter(e => e.bus_id === busFilter || e.bus_registration === busFilter);
+      buses = buses.filter(b => b.registration === busFilter);
+      trips = trips.filter(trip => trip.bus_registration === busFilter);
+    }
+    // Active only
+    if (activeOnly) {
+      const activeTrips = trips.filter(t => t.status === 'active');
+      const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
+      buses = buses.filter(b => liveBusRegs.has(b.registration));
+    }
+    // Search filter
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      buses = buses.filter(b =>
+        (b.registration && b.registration.toLowerCase().includes(q)) ||
+        (b.model && b.model.toLowerCase().includes(q))
+      );
+    }
+    return { tickets, sales, expenses, buses, trips };
+  };
+
+  const fetchDashboardData = () => {
     setLoading(true);
     Promise.all([
       getTickets(),
@@ -40,17 +93,45 @@ const Dashboard: React.FC = () => {
       getBuses(),
       getTrips()
     ]).then(([tickets, sales, expenses, buses, trips]) => {
-      setTotalTickets(tickets.length);
-      setTotalRevenue(sales.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0));
-      setTotalExpenses(expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0));
-      // Only buses with an active trip
-      const activeTrips = trips.filter(t => t.status === 'active');
-      const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
-      const liveBusesList = buses.filter(b => liveBusRegs.has(b.registration));
-      setLiveBuses(liveBusesList);
-      setActiveBuses(liveBusesList.length);
-    }).finally(() => setLoading(false));
+      setAllTickets(tickets);
+      setAllSales(sales);
+      setAllExpenses(expenses);
+      setAllBuses(buses);
+      setAllTrips(trips);
+      setLoading(false);
+    });
+  };
+
+  // Recompute metrics and live buses when filters change or data loads
+  const { tickets, sales, expenses, buses, trips } = applyFilters();
+  useEffect(() => {
+    fetchDashboardData();
+    // Subscribe to real-time changes
+    const tripsSub = subscribeToChanges('trips', fetchDashboardData);
+    const busesSub = subscribeToChanges('buses', fetchDashboardData);
+    const ticketsSub = subscribeToChanges('tickets', fetchDashboardData);
+    const salesSub = subscribeToChanges('sales', fetchDashboardData);
+    const expensesSub = subscribeToChanges('expenses', fetchDashboardData);
+    return () => {
+      tripsSub.unsubscribe();
+      busesSub.unsubscribe();
+      ticketsSub.unsubscribe();
+      salesSub.unsubscribe();
+      expensesSub.unsubscribe();
+    };
   }, []);
+  // Recompute on filter change
+  useEffect(() => {
+    // No need to refetch, just recompute
+    // (applyFilters is called on every render)
+  }, [busFilter, timeRange, activeOnly, search]);
+
+  // Metrics
+  const totalTickets = tickets.length;
+  const totalRevenue = sales.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+  const activeBuses = buses.length;
+  const liveBuses = buses;
 
   return (
     <Box>
@@ -196,7 +277,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <Paper sx={{ p: 2 }}>
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>Live Buses (last 24h)</Typography>
-                <TableContainer>
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table>
                     <TableHead>
                       <TableRow>

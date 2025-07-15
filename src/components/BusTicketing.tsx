@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSupabase } from '../contexts/SupabaseContext';
 import { createTicket, createSale, getTickets, getBuses, getLuggage, createLuggage, getTripExpenses, createTripExpense, getTrips, createTrip, getRoutes } from '../services/databaseService';
 import type { Ticket as TicketType, Bus, Route } from '../types/database.types.ts';
-import {
+import { 
   Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, FormControlLabel, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell
 } from '@mui/material';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -181,7 +181,7 @@ const BusTicketing: React.FC = () => {
         <Box>
           <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
             <DirectionsBusIcon sx={{ mr: 1 }} /> Timboon Bus Mobile
-          </Typography>
+        </Typography>
           <Typography variant="body2" color="text.secondary">Conductor & Driver Interface</Typography>
         </Box>
         <Box display="flex" alignItems="center" gap={2}>
@@ -202,41 +202,41 @@ const BusTicketing: React.FC = () => {
         </Box>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <TextField
+              <TextField
               select
-              label="Bus Registration"
-              value={busRegistration}
+                label="Bus Registration"
+                value={busRegistration}
               onChange={e => setBusRegistration(e.target.value)}
-              fullWidth
-              required
+                fullWidth
+                required
               disabled={locked}
               size="small"
               placeholder="e.g., ABC-123"
             >
               {buses.map(bus => (
                 <MenuItem key={bus.id} value={bus.registration}>{bus.registration} {bus.model ? `- ${bus.model}` : ''}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
               select
               label="Route"
               value={selectedRouteId}
               onChange={e => setSelectedRouteId(e.target.value)}
-              fullWidth
+                fullWidth
               disabled={locked}
               size="small"
-              required
+                required
               placeholder="Select route"
             >
               {routes.map(route => (
                 <MenuItem key={route.id} value={route.id}>
                   {route.name} ({route.start_point} → {route.end_point})
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               label="Driver Name"
@@ -248,12 +248,12 @@ const BusTicketing: React.FC = () => {
               placeholder="Driver's full name"
             />
           </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
+            <Grid item xs={12} md={6}>
+              <TextField
               label="Conductor Name"
               value={conductorName}
               onChange={e => setConductorName(e.target.value)}
-              fullWidth
+                fullWidth
               disabled={locked}
               size="small"
               placeholder="Conductor's full name"
@@ -347,8 +347,8 @@ const BusTicketing: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
+            <Grid item xs={12} md={6}>
+              <TextField
                     label="Destination"
                     value={destination}
                     onChange={e => setDestination(e.target.value)}
@@ -374,32 +374,32 @@ const BusTicketing: React.FC = () => {
                     type="number"
                     value={discount}
                     onChange={e => setDiscount(e.target.value)}
-                    fullWidth
+                fullWidth
                     size="small"
                   />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <TextField
-                    select
-                    label="Payment Method"
-                    value={paymentMethod}
+                select
+                label="Payment Method"
+                value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
                     fullWidth
-                    required
+                required
                     size="small"
                   >
                     <MenuItem value="Cash">Cash</MenuItem>
                     <MenuItem value="Card">Card</MenuItem>
                     <MenuItem value="EcoCash">EcoCash</MenuItem>
                   </TextField>
-                </Grid>
-                <Grid item xs={12}>
+            </Grid>
+            <Grid item xs={12}>
                   <Button type="submit" variant="contained" color="primary" fullWidth size="large" sx={{ mt: 2 }} disabled={loading}>
                     {loading ? 'Adding...' : 'Add Passenger Ticket'}
-                  </Button>
-                </Grid>
-              </Grid>
-            </form>
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
           </Box>
         )}
         {tab === 1 && (
@@ -436,30 +436,32 @@ const BusTicketing: React.FC = () => {
               </Grid>
             </form>
             <TableContainer sx={{ mt: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Weight</TableCell>
-                    <TableCell>Fee</TableCell>
-                    <TableCell>Passenger</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {luggageList.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} align="center">No luggage added</TableCell></TableRow>
-                  ) : (
-                    luggageList.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{item.weight}</TableCell>
-                        <TableCell>{item.fee}</TableCell>
-                        <TableCell>{item.passenger}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Weight</TableCell>
+                      <TableCell>Fee</TableCell>
+                      <TableCell>Passenger</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {luggageList.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} align="center">No luggage added</TableCell></TableRow>
+                    ) : (
+                      luggageList.map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.weight}</TableCell>
+                          <TableCell>{item.fee}</TableCell>
+                          <TableCell>{item.passenger}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
             </TableContainer>
           </Box>
         )}
@@ -494,28 +496,30 @@ const BusTicketing: React.FC = () => {
               </Grid>
             </form>
             <TableContainer sx={{ mt: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Description</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {expensesList.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} align="center">No expenses added</TableCell></TableRow>
-                  ) : (
-                    expensesList.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.category}</TableCell>
-                        <TableCell>{item.amount}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Description</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {expensesList.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} align="center">No expenses added</TableCell></TableRow>
+                    ) : (
+                      expensesList.map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{item.category}</TableCell>
+                          <TableCell>{item.amount}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
             </TableContainer>
           </Box>
         )}
@@ -523,46 +527,48 @@ const BusTicketing: React.FC = () => {
           <Box>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>Manifest</Typography>
             <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Ticket #</TableCell>
-                    <TableCell>Origin</TableCell>
-                    <TableCell>Destination</TableCell>
-                    <TableCell>Price</TableCell>
-                    <TableCell>Payment</TableCell>
-                    <TableCell>Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tickets.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
-                  ) : (
-                    tickets.map((t, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
-                        <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
-                        <TableCell>{t.destination}</TableCell>
-                        <TableCell>{t.price}</TableCell>
-                        <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
-                        <TableCell>{t.date}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Ticket #</TableCell>
+                      <TableCell>Origin</TableCell>
+                      <TableCell>Destination</TableCell>
+                      <TableCell>Price</TableCell>
+                      <TableCell>Payment</TableCell>
+                      <TableCell>Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tickets.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
+                    ) : (
+                      tickets.map((t, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
+                          <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
+                          <TableCell>{t.destination}</TableCell>
+                          <TableCell>{t.price}</TableCell>
+                          <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
+                          <TableCell>{t.date}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
             </TableContainer>
           </Box>
         )}
       </Paper>
 
-      <Dialog open={showTicket} onClose={() => setShowTicket(false)} maxWidth="md" fullWidth>
+      <Dialog open={showTicket} onClose={() => setShowTicket(false)} maxWidth="sm" fullWidth>
         {ticketData && <TicketPreview ticketData={ticketData} />}
       </Dialog>
 
-      <Dialog open={showTripSummary} onClose={() => setShowTripSummary(false)} maxWidth="md" fullWidth>
+      <Dialog open={showTripSummary} onClose={() => setShowTripSummary(false)} maxWidth="sm" fullWidth>
         <Paper sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>Trip Summary</Typography>
+          <Typography variant="h5" fontWeight={700} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Trip Summary</Typography>
           <Grid container spacing={2} mb={2}>
             <Grid item xs={12} md={3}>
               <Paper sx={{ p: 2, textAlign: 'center', background: '#f5faff' }}>
@@ -590,88 +596,94 @@ const BusTicketing: React.FC = () => {
             </Grid>
           </Grid>
           <Divider sx={{ my: 2 }} />
-          <Typography variant="h6" fontWeight={600} gutterBottom>Tickets</Typography>
+          <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Tickets</Typography>
           <TableContainer sx={{ mb: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Ticket #</TableCell>
-                  <TableCell>Origin</TableCell>
-                  <TableCell>Destination</TableCell>
-                  <TableCell>Price</TableCell>
-                  <TableCell>Payment</TableCell>
-                  <TableCell>Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {summaryTickets.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
-                ) : (
-                  summaryTickets.map((t, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
-                      <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
-                      <TableCell>{t.destination}</TableCell>
-                      <TableCell>{t.price}</TableCell>
-                      <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
-                      <TableCell>{t.date}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Ticket #</TableCell>
+                    <TableCell>Origin</TableCell>
+                    <TableCell>Destination</TableCell>
+                    <TableCell>Price</TableCell>
+                    <TableCell>Payment</TableCell>
+                    <TableCell>Date</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summaryTickets.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} align="center">No tickets sold</TableCell></TableRow>
+                  ) : (
+                    summaryTickets.map((t, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
+                        <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
+                        <TableCell>{t.destination}</TableCell>
+                        <TableCell>{t.price}</TableCell>
+                        <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
+                        <TableCell>{t.date}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           </TableContainer>
-          <Typography variant="h6" fontWeight={600} gutterBottom>Luggage</Typography>
+          <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Luggage</Typography>
           <TableContainer sx={{ mb: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Weight</TableCell>
-                  <TableCell>Fee</TableCell>
-                  <TableCell>Passenger</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {summaryLuggage.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} align="center">No luggage added</TableCell></TableRow>
-                ) : (
-                  summaryLuggage.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.weight}</TableCell>
-                      <TableCell>{item.fee}</TableCell>
-                      <TableCell>{item.passenger}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Weight</TableCell>
+                    <TableCell>Fee</TableCell>
+                    <TableCell>Passenger</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summaryLuggage.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} align="center">No luggage added</TableCell></TableRow>
+                  ) : (
+                    summaryLuggage.map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.weight}</TableCell>
+                        <TableCell>{item.fee}</TableCell>
+                        <TableCell>{item.passenger}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           </TableContainer>
-          <Typography variant="h6" fontWeight={600} gutterBottom>Expenses</Typography>
+          <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Expenses</Typography>
           <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Description</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {summaryExpenses.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} align="center">No expenses added</TableCell></TableRow>
-                ) : (
-                  summaryExpenses.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.amount}</TableCell>
-                      <TableCell>{item.description}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Description</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summaryExpenses.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} align="center">No expenses added</TableCell></TableRow>
+                  ) : (
+                    summaryExpenses.map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>{item.amount}</TableCell>
+                        <TableCell>{item.description}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           </TableContainer>
           <Box mt={2} textAlign="right">
             <Button variant="contained" color="primary" onClick={() => setShowTripSummary(false)}>Close</Button>
