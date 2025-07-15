@@ -190,21 +190,13 @@ const BusTicketing: React.FC = () => {
       const ticketForPrint = {
         ticketNumber: newTicket.ticket_number,
         busRegistration,
-        driverName,
-        conductorName,
-        origin,
+        pickupPoint: origin, // Ensure this is set for TicketPreview
         destination,
-        passengerName,
-        price: parseFloat(fare),
-        discount: parseFloat(discount) || 0,
-        totalPrice: parseFloat(fare) - (parseFloat(discount) || 0),
+        price: fare,
+        discount,
         paymentMethod,
-        issueDate: now.toISOString().split('T')[0],
-        issueTime: now.toLocaleTimeString(),
-        issueLocation: 'Onboard',
-        agentName: conductorName,
-        departureDate: now.toISOString().split('T')[0],
-        departureTime: now.toLocaleTimeString(),
+        date: now.toISOString().split('T')[0], // Ensure this is set for TicketPreview
+        passengerName,
       };
       setTicketData(ticketForPrint);
       setShowTicket(true);
