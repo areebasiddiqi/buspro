@@ -54,6 +54,7 @@ const BusTicketing: React.FC = () => {
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [passengerName, setPassengerName] = useState('');
+  const [bluetoothDevice, setBluetoothDevice] = useState<BluetoothDevice | null>(null);
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -145,6 +146,27 @@ const BusTicketing: React.FC = () => {
   const handleLockToggle = () => setLocked(l => !l);
   const handlePrinterToggle = () => setPrinterConnected(p => !p);
 
+  // Web Bluetooth connect logic
+  const connectBluetoothPrinter = async () => {
+    if (!navigator.bluetooth) {
+      alert('Web Bluetooth API is not supported in this browser.');
+      return;
+    }
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        // You may need to adjust filters for your printer
+        acceptAllDevices: true,
+        optionalServices: [] // Add service UUIDs if known
+      });
+      setBluetoothDevice(device);
+      setPrinterConnected(true);
+      alert('Bluetooth printer connected: ' + device.name);
+    } catch (error: any) {
+      alert('Failed to connect: ' + (error?.message || error));
+      setPrinterConnected(false);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -196,7 +218,7 @@ const BusTicketing: React.FC = () => {
         </Box>
         <Box display="flex" alignItems="center" gap={2}>
           <Chip label={tripActive ? 'Trip Active' : 'No Active Trip'} color={tripActive ? 'success' : 'default'} size="small" />
-          <Chip label={printerConnected ? 'Printer Connected' : 'No Printer'} color={printerConnected ? 'success' : 'default'} size="small" onClick={handlePrinterToggle} icon={<PrintIcon />} />
+          <Chip label={printerConnected ? (bluetoothDevice?.name ? `Connected: ${bluetoothDevice.name}` : 'Connected') : 'Disconnected'} color={printerConnected ? 'success' : 'default'} size="small" onClick={printerConnected ? undefined : connectBluetoothPrinter} icon={<PrintIcon />} />
         </Box>
       </Paper>
 
@@ -324,10 +346,10 @@ const BusTicketing: React.FC = () => {
           <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
             <PrintIcon sx={{ mr: 1 }} /> Thermal Printer
           </Typography>
-          <Chip label={printerConnected ? 'Connected' : 'Disconnected'} color={printerConnected ? 'success' : 'default'} size="small" onClick={handlePrinterToggle} />
+          <Chip label={printerConnected ? (bluetoothDevice?.name ? `Connected: ${bluetoothDevice.name}` : 'Connected') : 'Disconnected'} color={printerConnected ? 'success' : 'default'} size="small" onClick={printerConnected ? undefined : connectBluetoothPrinter} />
         </Box>
-        <Button variant="contained" color="primary" startIcon={<PrintIcon />} fullWidth onClick={handlePrinterToggle}>
-          {printerConnected ? 'Disconnect Printer' : 'Connect Printer'}
+        <Button variant="contained" color="primary" startIcon={<PrintIcon />} fullWidth onClick={printerConnected ? handlePrinterToggle : connectBluetoothPrinter}>
+          {printerConnected ? 'Disconnect Printer' : 'Connect Bluetooth Printer'}
         </Button>
       </Paper>
 
