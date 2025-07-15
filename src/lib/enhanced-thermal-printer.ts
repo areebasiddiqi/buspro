@@ -30,36 +30,32 @@ export class EnhancedThermalPrinter {
 
   // Comprehensive list of thermal printer service UUIDs
   private readonly PRINTER_SERVICE_UUIDS = [
-    // Standard thermal printer services
-    "000018f0-0000-1000-8000-00805f9b34fb", // Standard thermal printer
-    "0000ff00-0000-1000-8000-00805f9b34fb", // Common Chinese thermal printer
-    "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART Service (common in BLE printers)
-
-    // HM-10 BLE module services (very common in thermal printers)
-    "0000ffe0-0000-1000-8000-00805f9b34fb", // HM-10 service
-    "0000ffe1-0000-1000-8000-00805f9b34fb", // HM-10 characteristic
-
-    // ESC/POS printer services
-    "49535343-fe7d-4ae5-8fa9-9fafd205e455", // ESC/POS service
-    "49535343-1e4d-4bd9-ba61-23c647249616", // ESC/POS write characteristic
-
-    // Zjiang printer services
-    "0000ff12-0000-1000-8000-00805f9b34fb", // Zjiang thermal printer
-    "0000ff02-0000-1000-8000-00805f9b34fb", // Zjiang service 2
-
-    // HPRT printer services
-    "000018f1-0000-1000-8000-00805f9b34fb", // HPRT thermal printer
-    "000018f2-0000-1000-8000-00805f9b34fb", // HPRT service 2
-
-    // Generic printer services
-    "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute Service
-    "0000180a-0000-1000-8000-00805f9b34fb", // Device Information Service
-    "0000180f-0000-1000-8000-00805f9b34fb", // Battery Service (many printers have this)
-
-    // Custom printer services
-    "12345678-1234-1234-1234-123456789abc", // Custom service 1
-    "87654321-4321-4321-4321-cba987654321", // Custom service 2
-  ]
+    '000018f0-0000-1000-8000-00805f9b34fb',
+    '0000ff00-0000-1000-8000-00805f9b34fb',
+    '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+    '0000ffe0-0000-1000-8000-00805f9b34fb',
+    '0000ffe1-0000-1000-8000-00805f9b34fb',
+    '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+    '49535343-1e4d-4bd9-ba61-23c647249616',
+    '0000ff12-0000-1000-8000-00805f9b34fb',
+    '0000ff02-0000-1000-8000-00805f9b34fb',
+    '000018f1-0000-1000-8000-00805f9b34fb',
+    '000018f2-0000-1000-8000-00805f9b34fb',
+    '00001801-0000-1000-8000-00805f9b34fb',
+    '0000180a-0000-1000-8000-00805f9b34fb',
+    '0000180f-0000-1000-8000-00805f9b34fb',
+    '12345678-1234-1234-1234-123456789abc',
+    '87654321-4321-4321-4321-cba987654321',
+  ];
+  private readonly WRITE_CHARACTERISTIC_UUIDS = [
+    '00002af1-0000-1000-8000-00805f9b34fb',
+    '0000ff01-0000-1000-8000-00805f9b34fb',
+    '49535343-1e4d-4bd9-ba61-23c647249616',
+    '49535343-8841-43f4-a8d4-ecbe34729bb3',
+    '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+    '0000ffe1-0000-1000-8000-00805f9b34fb',
+    '0000ff02-0000-1000-8000-00805f9b34fb',
+  ];
 
   // Thermal printer name patterns
   private readonly PRINTER_NAME_PATTERNS = [
@@ -320,17 +316,28 @@ export class EnhancedThermalPrinter {
 
     for (const service of services) {
       try {
-        const characteristics = await service.getCharacteristics()
-
+        for (const charUUID of this.WRITE_CHARACTERISTIC_UUIDS) {
+          try {
+            const characteristic = await service.getCharacteristic(charUUID);
+            // Check if writable
+            if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
+              console.log(`\u2705 Found writable characteristic: ${characteristic.uuid}`);
+              return { service, characteristic };
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        // Fallback: try all characteristics if none of the known UUIDs worked
+        const characteristics = await service.getCharacteristics();
         for (const characteristic of characteristics) {
-          // Look for writable characteristics
           if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
-            console.log(`✅ Found writable characteristic: ${characteristic.uuid}`)
-            return { service, characteristic }
+            console.log(`\u2705 Found writable characteristic (fallback): ${characteristic.uuid}`);
+            return { service, characteristic };
           }
         }
       } catch (error) {
-        console.log(`⚠️ Could not get characteristics for service ${service.uuid}`)
+        console.log(`\u26a0\ufe0f Could not get characteristics for service ${service.uuid}`);
       }
     }
 

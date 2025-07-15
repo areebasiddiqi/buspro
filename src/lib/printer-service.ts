@@ -66,14 +66,36 @@ class BluetoothThermalPrinter {
       console.log("🔵 Requesting Bluetooth device...")
 
       // Request device with comprehensive filters for thermal printers
+      const PRINTER_SERVICE_UUIDS = [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+        '0000ffe0-0000-1000-8000-00805f9b34fb',
+        '0000ffe1-0000-1000-8000-00805f9b34fb',
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '49535343-1e4d-4bd9-ba61-23c647249616',
+        '0000ff12-0000-1000-8000-00805f9b34fb',
+        '0000ff02-0000-1000-8000-00805f9b34fb',
+        '000018f1-0000-1000-8000-00805f9b34fb',
+        '000018f2-0000-1000-8000-00805f9b34fb',
+        '00001801-0000-1000-8000-00805f9b34fb',
+        '0000180a-0000-1000-8000-00805f9b34fb',
+        '0000180f-0000-1000-8000-00805f9b34fb',
+        '12345678-1234-1234-1234-123456789abc',
+        '87654321-4321-4321-4321-cba987654321',
+      ];
+      const WRITE_CHARACTERISTIC_UUIDS = [
+        '00002af1-0000-1000-8000-00805f9b34fb',
+        '0000ff01-0000-1000-8000-00805f9b34fb',
+        '49535343-1e4d-4bd9-ba61-23c647249616',
+        '49535343-8841-43f4-a8d4-ecbe34729bb3',
+        '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+        '0000ffe1-0000-1000-8000-00805f9b34fb',
+        '0000ff02-0000-1000-8000-00805f9b34fb',
+      ];
       this.device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: [
-          "000018f0-0000-1000-8000-00805f9b34fb", // Common thermal printer service
-          "0000ff00-0000-1000-8000-00805f9b34fb", // Alternative service
-          "49535343-fe7d-4ae5-8fa9-9fafd205e455", // Another common service
-          "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART service
-        ],
+        optionalServices: PRINTER_SERVICE_UUIDS,
       })
 
       if (!this.device) {
@@ -178,28 +200,41 @@ class BluetoothThermalPrinter {
   private async findPrinterCharacteristic(): Promise<void> {
     if (!this.server) throw new Error("No GATT server")
 
-    const serviceUUIDs = [
+    const PRINTER_SERVICE_UUIDS = [
       "000018f0-0000-1000-8000-00805f9b34fb",
       "0000ff00-0000-1000-8000-00805f9b34fb",
-      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
       "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+      "0000ffe0-0000-1000-8000-00805f9b34fb",
+      "0000ffe1-0000-1000-8000-00805f9b34fb",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+      "49535343-1e4d-4bd9-ba61-23c647249616",
+      "0000ff12-0000-1000-8000-00805f9b34fb",
+      "0000ff02-0000-1000-8000-00805f9b34fb",
+      "000018f1-0000-1000-8000-00805f9b34fb",
+      "000018f2-0000-1000-8000-00805f9b34fb",
+      "00001801-0000-1000-8000-00805f9b34fb",
+      "0000180a-0000-1000-8000-00805f9b34fb",
+      "0000180f-0000-1000-8000-00805f9b34fb",
+      "12345678-1234-1234-1234-123456789abc",
+      "87654321-4321-4321-4321-cba987654321",
     ]
-
-    const characteristicUUIDs = [
+    const WRITE_CHARACTERISTIC_UUIDS = [
       "00002af1-0000-1000-8000-00805f9b34fb",
       "0000ff01-0000-1000-8000-00805f9b34fb",
       "49535343-1e4d-4bd9-ba61-23c647249616",
       "49535343-8841-43f4-a8d4-ecbe34729bb3",
       "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+      "0000ffe1-0000-1000-8000-00805f9b34fb",
+      "0000ff02-0000-1000-8000-00805f9b34fb",
     ]
 
     // Try to find working service and characteristic combination
-    for (const serviceUUID of serviceUUIDs) {
+    for (const serviceUUID of PRINTER_SERVICE_UUIDS) {
       try {
         console.log(`🔍 Trying service: ${serviceUUID}`)
         const service = await this.server.getPrimaryService(serviceUUID)
 
-        for (const charUUID of characteristicUUIDs) {
+        for (const charUUID of WRITE_CHARACTERISTIC_UUIDS) {
           try {
             this.characteristic = await service.getCharacteristic(charUUID)
             console.log(`✅ Found working characteristic: ${charUUID}`)
