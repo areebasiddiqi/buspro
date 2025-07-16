@@ -4,7 +4,6 @@ interface Navigator {
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from '../contexts/SupabaseContext';
 import { createTicket, createSale, getTickets, getBuses, getLuggage, createLuggage, getTripExpenses, createTripExpense, getTrips, createTrip, getRoutes } from '../services/databaseService';
-import type { Ticket as TicketType, Bus, Route } from '../types/database.types.ts';
 import { 
   Container, Paper, Typography, TextField, Button, Grid, MenuItem, Box, Dialog, Tabs, Tab, Switch, Divider, IconButton, Card, CardContent, CardHeader, Chip, TableContainer, Table, TableHead, TableRow, TableBody, TableCell, Autocomplete
 } from '@mui/material';
@@ -21,7 +20,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TicketPreview from './TicketPreview';
 import dayjs from 'dayjs';
-import { printThermalReceipt } from '../lib/printer-service';
+import { printThermalReceipt, connectThermalPrinter } from '../lib/printer-service';
 
 const tabLabels = ['Passenger', 'Luggage', 'Expenses', 'Manifest'];
 
@@ -42,7 +41,7 @@ const BusTicketing: React.FC = () => {
   const [showTicket, setShowTicket] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
-  const [buses, setBuses] = useState<Bus[]>([]);
+  const [buses, setBuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [luggageList, setLuggageList] = useState<any[]>([]);
   const [luggageForm, setLuggageForm] = useState({ description: '', weight: '', fee: '', passenger: '' });
@@ -54,10 +53,12 @@ const BusTicketing: React.FC = () => {
   const [summaryLuggage, setSummaryLuggage] = useState<any[]>([]);
   const [summaryExpenses, setSummaryExpenses] = useState<any[]>([]);
   const [tripId, setTripId] = useState<string | null>(null);
-  const [routes, setRoutes] = useState<Route[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState('');
-  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<any | null>(null);
   const [passengerName, setPassengerName] = useState('');
+  const [printerConnected, setPrinterConnected] = useState(false);
+  const [printerName, setPrinterName] = useState<string | null>(null);
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -148,6 +149,20 @@ const BusTicketing: React.FC = () => {
   };
   const handleLockToggle = () => setLocked(l => !l);
 
+  // Add a function to connect the printer
+  const handleConnectPrinter = async () => {
+    try {
+      const name = await connectThermalPrinter();
+      setPrinterConnected(true);
+      setPrinterName(name);
+      alert('Printer connected: ' + (name || 'Unknown'));
+    } catch (err: any) {
+      setPrinterConnected(false);
+      setPrinterName(null);
+      alert('Failed to connect: ' + ((err && (err as any).message) || err));
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -183,12 +198,14 @@ const BusTicketing: React.FC = () => {
       setPassengerName(''); // Reset after submit
       setDiscount('0.00');
       // Print to Bluetooth printer if connected
-      if (true) { // Always print for now, as printer connection is removed
+      if (printerConnected) {
         try {
           await printThermalReceipt(ticketForPrint);
-        } catch (err) {
-          alert('Failed to print ticket: ' + (err?.message || err));
+        } catch (err: any) {
+          alert('Failed to print ticket: ' + ((err && (err as any).message) || err));
         }
+      } else {
+        alert('Please connect a Bluetooth printer first.');
       }
     } catch (error) {
       alert('Failed to create ticket.');
@@ -209,6 +226,9 @@ const BusTicketing: React.FC = () => {
         </Box>
         <Box display="flex" alignItems="center" gap={2}>
           <Chip label={tripActive ? 'Trip Active' : 'No Active Trip'} color={tripActive ? 'success' : 'default'} size="small" />
+          <Button variant={printerConnected ? 'contained' : 'outlined'} color={printerConnected ? 'success' : 'primary'} onClick={handleConnectPrinter}>
+            {printerConnected ? `Printer: ${printerName || 'Connected'}` : 'Connect Printer'}
+          </Button>
         </Box>
       </Paper>
 
@@ -612,10 +632,14 @@ const BusTicketing: React.FC = () => {
                 color="primary"
                 startIcon={<PrintIcon />}
                 onClick={async () => {
+                  if (!printerConnected) {
+                    alert('Please connect a Bluetooth printer first.');
+                    return;
+                  }
                   try {
                     await printThermalReceipt(ticketData);
-                  } catch (err) {
-                    alert('Failed to print ticket: ' + (err?.message || err));
+                  } catch (err: any) {
+                    alert('Failed to print ticket: ' + ((err && (err as any).message) || err));
                   }
                 }}
               >
