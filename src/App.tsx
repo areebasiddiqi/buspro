@@ -7,6 +7,16 @@ import TripManagement from './components/TripManagement';
 import { SupabaseProvider } from './contexts/SupabaseContext';
 import LandingPage from './components/LandingPage';
 import AdminLayout from './components/AdminLayout';
+import AdminLogin from './components/AdminLogin';
+import React from 'react';
+
+function RequireAdminAuth({ children }: { children: React.ReactNode }) {
+  if (localStorage.getItem('admin-auth') !== 'true') {
+    window.location.replace('/admin/login');
+    return null;
+  }
+  return <>{children}</>;
+}
 
 const theme = createTheme({
   palette: {
@@ -54,7 +64,12 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/mobile" element={<BusTicketing />} />
-            <Route path="/admin/*" element={<AdminLayout />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/*" element={
+              <RequireAdminAuth>
+                <AdminLayout />
+              </RequireAdminAuth>
+            } />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Box, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Divider, useTheme, useMediaQuery, Avatar } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Divider, useTheme, useMediaQuery, Avatar, Button } from '@mui/material';
 import { Outlet, useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import BusManagement from './BusManagement';
@@ -29,6 +29,12 @@ const AdminLayout: React.FC = () => {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  // Add logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('admin-auth');
+    navigate('/admin/login');
   };
 
   const drawer = (
@@ -97,6 +103,7 @@ const AdminLayout: React.FC = () => {
             <Typography variant="h6" fontWeight={700} color="primary.main" sx={{ flexGrow: 1, fontSize: { xs: 18, sm: 22 } }}>Admin Portal</Typography>
             {/* User/Profile section */}
             <Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36, ml: 2 }}>A</Avatar>
+            <Button color="error" variant="outlined" sx={{ ml: 2 }} onClick={handleLogout}>Logout</Button>
           </Toolbar>
         </AppBar>
         <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', p: { xs: 1, sm: 3 } }}>
