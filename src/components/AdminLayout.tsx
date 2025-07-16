@@ -10,6 +10,7 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import MenuIcon from '@mui/icons-material/Menu';
+import AdminPanel from '../pages/AdminPanel';
 
 const drawerWidth = 220;
 
@@ -18,6 +19,7 @@ const navItems = [
   { label: 'Management', icon: <DirectionsBusIcon />, route: '/admin/management' },
   { label: 'Trip Management', icon: <TimelineIcon />, route: '/admin/trips' },
   { label: 'Active Reports', icon: <AssessmentIcon />, route: '/admin/reports' },
+  { label: 'Admin Panel', icon: <AssessmentIcon />, route: '/admin/panel' },
 ];
 
 const AdminLayout: React.FC = () => {
@@ -112,6 +114,7 @@ const AdminLayout: React.FC = () => {
             <Route path="management" element={<BusManagement />} />
             <Route path="trips" element={<TripManagement />} />
             <Route path="reports" element={<ActiveReports />} />
+            <Route path="panel" element={<AdminPanel />} />
             <Route path="*" element={<Navigate to="dashboard" />} />
           </Routes>
           <Outlet />

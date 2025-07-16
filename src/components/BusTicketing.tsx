@@ -63,6 +63,11 @@ const BusTicketing: React.FC = () => {
   const [luggageTicketData, setLuggageTicketData] = useState<any>(null);
   const [manifestPassword, setManifestPassword] = useState('');
   const [manifestUnlocked, setManifestUnlocked] = useState(false);
+  const [busPhoneNumber, setBusPhoneNumber] = useState('');
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [allTrips, setAllTrips] = useState<any[]>([]);
+  const [adminSummary, setAdminSummary] = useState<{[tripId: string]: {tickets: any[], luggage: any[], expenses: any[]}}>({});
+  const [dashboardStats, setDashboardStats] = useState<any[]>([]);
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -75,20 +80,38 @@ const BusTicketing: React.FC = () => {
     await supabase.from('trips').update({ status: 'ended', end_time: new Date().toISOString() }).eq('id', tripId);
   };
 
-  useEffect(() => {
-    getTickets().then(setTickets);
-    getBuses().then(setBuses);
-    getLuggage().then(setLuggageList);
-    getTripExpenses().then(setExpensesList);
-    getTrips().then(setPastTrips);
-    getRoutes().then(setRoutes);
-  }, [busRegistration]);
+  // Helper functions for localStorage
+  const saveTripContext = (bus: string, route: string, tripId: string | null) => {
+    localStorage.setItem('busRegistration', bus);
+    localStorage.setItem('selectedRouteName', route);
+    localStorage.setItem('tripId', tripId || '');
+  };
+  const loadTripContext = () => ({
+    bus: localStorage.getItem('busRegistration') || '',
+    route: localStorage.getItem('selectedRouteName') || '',
+    tripId: localStorage.getItem('tripId') || null,
+  });
+  const clearTripContext = () => {
+    localStorage.removeItem('busRegistration');
+    localStorage.removeItem('selectedRouteName');
+    localStorage.removeItem('tripId');
+  };
 
-  // On bus/route selection, check for an active trip
+  // On mount, restore trip context if available and fetch buses/routes
+  useEffect(() => {
+    const { bus, route, tripId: storedTripId } = loadTripContext();
+    if (bus) setBusRegistration(bus);
+    if (route) setSelectedRoute({ id: '', name: route, start_point: '', end_point: '', distance: 0, fare: 0 });
+    if (storedTripId) setTripId(storedTripId);
+    getBuses().then(setBuses);
+    getRoutes().then(setRoutes);
+  }, []);
+
+  // On bus/route selection, check for an active trip and fetch trip data
   useEffect(() => {
     const checkActiveTrip = async () => {
       if (busRegistration && selectedRoute?.name) {
-        const { data: trips, error } = await supabase
+        const { data: trips } = await supabase
           .from('trips')
           .select('*')
           .eq('bus_registration', busRegistration)
@@ -98,13 +121,25 @@ const BusTicketing: React.FC = () => {
         if (trips && trips.length > 0) {
           setTripId(trips[0].id);
           setTripActive(true);
+          saveTripContext(busRegistration, selectedRoute.name, trips[0].id);
+          // Fetch trip data for this trip only
+          getTickets().then(t => setTickets(t.filter(ticket => ticket.trip_id === trips[0].id)));
+          getLuggage().then(l => setLuggageList(l.filter(item => item.trip_id === trips[0].id)));
+          getTripExpenses().then(e => setExpensesList(e.filter(item => item.trip_id === trips[0].id)));
         } else {
           setTripId(null);
           setTripActive(false);
+          saveTripContext(busRegistration, selectedRoute.name, null);
+          setTickets([]);
+          setLuggageList([]);
+          setExpensesList([]);
         }
       } else {
         setTripId(null);
         setTripActive(false);
+        setTickets([]);
+        setLuggageList([]);
+        setExpensesList([]);
       }
     };
     checkActiveTrip();
@@ -127,6 +162,49 @@ const BusTicketing: React.FC = () => {
     }
   }, [showTripSummary, tripId]);
 
+  // Fetch all trips and their summaries when admin panel opens
+  useEffect(() => {
+    if (adminPanelOpen) {
+      getTrips().then(async trips => {
+        setAllTrips(trips);
+        // For each trip, fetch tickets, luggage, expenses
+        const summary: {[tripId: string]: {tickets: any[], luggage: any[], expenses: any[]}} = {};
+        for (const trip of trips) {
+          const tickets = (await getTickets()).filter((t: any) => t.trip_id === trip.id);
+          const luggage = (await getLuggage()).filter((l: any) => l.trip_id === trip.id);
+          const expenses = (await getTripExpenses()).filter((e: any) => e.trip_id === trip.id);
+          summary[trip.id] = { tickets, luggage, expenses };
+        }
+        setAdminSummary(summary);
+      });
+    }
+  }, [adminPanelOpen]);
+
+  // Fetch dashboard stats for all buses
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      const trips = await getTrips();
+      const tickets = await getTickets();
+      const luggage = await getLuggage();
+      const expenses = await getTripExpenses();
+      const stats: {[bus: string]: {gross: number, expenses: number, net: number}} = {};
+      buses.forEach(bus => {
+        const busTrips = trips.filter(t => t.bus_registration === bus.registration);
+        const busTickets = tickets.filter(t => busTrips.some(trip => trip.id === t.trip_id));
+        const busLuggage = luggage.filter(l => busTrips.some(trip => trip.id === l.trip_id));
+        const busExpenses = expenses.filter(e => busTrips.some(trip => trip.id === e.trip_id));
+        const grossTickets = busTickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
+        const grossLuggage = busLuggage.reduce((sum, l) => sum + (parseFloat(l.fee) || 0), 0);
+        const gross = grossTickets + grossLuggage;
+        const totalExpenses = busExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        const net = gross - totalExpenses;
+        stats[bus.registration] = { gross, expenses: totalExpenses, net };
+      });
+      setDashboardStats(Object.entries(stats));
+    };
+    if (buses.length > 0) fetchDashboardStats();
+  }, [buses]);
+
   const handleStartTrip = async () => {
     if (tripActive) return; // Prevent starting if already active
     const trip = await createTrip({
@@ -139,9 +217,11 @@ const BusTicketing: React.FC = () => {
     });
     setTripId(trip.id);
     setTripActive(true);
-    setTickets([]); // Reset tickets for new trip
-    setLuggageList([]); // Reset luggage for new trip
-    setExpensesList([]); // Reset expenses for new trip
+    saveTripContext(busRegistration, selectedRoute?.name || '', trip.id);
+    // Fetch trip data for this trip only
+    getTickets().then(t => setTickets(t.filter(ticket => ticket.trip_id === trip.id)));
+    getLuggage().then(l => setLuggageList(l.filter(item => item.trip_id === trip.id)));
+    getTripExpenses().then(e => setExpensesList(e.filter(item => item.trip_id === trip.id)));
   };
   const handleEndTrip = async () => {
     if (tripId) {
@@ -149,6 +229,7 @@ const BusTicketing: React.FC = () => {
     }
     setTripActive(false);
     setShowTripSummary(true);
+    clearTripContext();
     // Do NOT setTripId(null) here
   };
   const handleLockToggle = () => setLocked(l => !l);
@@ -195,6 +276,9 @@ const BusTicketing: React.FC = () => {
         paymentMethod,
         date: now.toISOString().split('T')[0], // Ensure this is set for TicketPreview
         passengerName,
+        driverName,
+        conductorName,
+        busPhoneNumber,
       };
       setTicketData(ticketForPrint);
       setShowTicket(true);
@@ -218,6 +302,124 @@ const BusTicketing: React.FC = () => {
     }
   };
 
+  // Add a function to print trip summary
+  const handlePrintTripSummary = async () => {
+    if (!printerConnected) {
+      alert('Please connect a Bluetooth printer first.');
+      return;
+    }
+    // Compose summary string
+    let summary = '';
+    summary += `Trip Summary\n`;
+    summary += `-------------------------\n`;
+    summary += `Tickets Sold: ${summaryTickets.length}\n`;
+    const totalRevenue = summaryTickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
+    const totalExpenses = summaryExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const profit = totalRevenue - totalExpenses;
+    summary += `Revenue: $${totalRevenue.toFixed(2)}\n`;
+    summary += `Expenses: $${totalExpenses.toFixed(2)}\n`;
+    summary += `Profit: $${profit.toFixed(2)}\n`;
+    summary += `-------------------------\n`;
+    summary += `Tickets:\n`;
+    summaryTickets.forEach((t, idx) => {
+      summary += `${idx + 1}. ${t.passenger_name || t.passengerName || '-'} | ${t.pickup_point || t.pickupPoint} -> ${t.destination} | $${t.price} | ${t.payment_method || t.paymentMethod}\n`;
+    });
+    summary += `-------------------------\n`;
+    summary += `Luggage:\n`;
+    summaryLuggage.forEach((l, idx) => {
+      summary += `${idx + 1}. ${l.description} | ${l.passenger} | $${l.fee}\n`;
+    });
+    summary += `-------------------------\n`;
+    summary += `Expenses:\n`;
+    summaryExpenses.forEach((e, idx) => {
+      summary += `${idx + 1}. ${e.category}: $${e.amount} | ${e.description}\n`;
+    });
+    summary += `-------------------------\n`;
+    // Estimated tickets on hand (assume starting tickets = 100, subtract sold)
+    const startingTickets = 100;
+    const ticketsOnHand = startingTickets - summaryTickets.length;
+    summary += `Estimated Tickets on Hand: ${ticketsOnHand}\n`;
+    summary += `-------------------------\n`;
+    try {
+      // Print using the printer service (as plain text)
+      if ((window.navigator as any).bluetooth) {
+        // If using browser Bluetooth printing, send as text
+        await printThermalReceipt({
+          ticketNumber: 'TRIP-SUMMARY',
+          busRegistration: busRegistration || '',
+          pickupPoint: 'Trip Summary',
+          destination: '',
+          price: totalRevenue.toFixed(2),
+          discount: '0.00',
+          paymentMethod: 'SUMMARY',
+          date: new Date().toISOString().split('T')[0],
+          passengerName: summary.replace(/\n/g, ' | '),
+        });
+      } else {
+        alert(summary);
+      }
+    } catch (err) {
+      alert('Failed to print trip summary.');
+    }
+  };
+
+  const handleAdminPrintSummary = async (trip: any) => {
+    if (!printerConnected) {
+      alert('Please connect a Bluetooth printer first.');
+      return;
+    }
+    const summaryData = adminSummary[trip.id] || { tickets: [], luggage: [], expenses: [] };
+    let summary = '';
+    summary += `Trip Summary\n`;
+    summary += `-------------------------\n`;
+    summary += `Bus: ${trip.bus_registration}\n`;
+    summary += `Route: ${trip.route}\n`;
+    summary += `Driver: ${trip.driver}\n`;
+    summary += `Conductor: ${trip.conductor}\n`;
+    summary += `Start: ${trip.start_time}\n`;
+    summary += `End: ${trip.end_time || '-'}\n`;
+    summary += `Status: ${trip.status}\n`;
+    summary += `-------------------------\n`;
+    summary += `Tickets Sold: ${summaryData.tickets.length}\n`;
+    const totalRevenue = summaryData.tickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
+    const totalExpenses = summaryData.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const profit = totalRevenue - totalExpenses;
+    summary += `Revenue: $${totalRevenue.toFixed(2)}\n`;
+    summary += `Expenses: $${totalExpenses.toFixed(2)}\n`;
+    summary += `Profit: $${profit.toFixed(2)}\n`;
+    summary += `-------------------------\n`;
+    summary += `Tickets:\n`;
+    summaryData.tickets.forEach((t, idx) => {
+      summary += `${idx + 1}. ${t.passenger_name || t.passengerName || '-'} | ${t.pickup_point || t.pickupPoint} -> ${t.destination} | $${t.price} | ${t.payment_method || t.paymentMethod}\n`;
+    });
+    summary += `-------------------------\n`;
+    summary += `Luggage:\n`;
+    summaryData.luggage.forEach((l, idx) => {
+      summary += `${idx + 1}. ${l.description} | ${l.passenger} | $${l.fee}\n`;
+    });
+    summary += `-------------------------\n`;
+    summary += `Expenses:\n`;
+    summaryData.expenses.forEach((e, idx) => {
+      summary += `${idx + 1}. ${e.category}: $${e.amount} | ${e.description}\n`;
+    });
+    summary += `-------------------------\n`;
+    try {
+      await printThermalReceipt({
+        ticketNumber: 'TRIP-SUMMARY',
+        busRegistration: trip.bus_registration || '',
+        pickupPoint: 'Trip Summary',
+        destination: '',
+        price: totalRevenue.toFixed(2),
+        discount: '0.00',
+        paymentMethod: 'SUMMARY',
+        date: new Date().toISOString().split('T')[0],
+        passengerName: summary.replace(/\n/g, ' | '),
+      });
+    } catch (err) {
+      alert('Failed to print trip summary.');
+    }
+  };
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       {/* Header */}
@@ -233,6 +435,7 @@ const BusTicketing: React.FC = () => {
           <Button variant={printerConnected ? 'contained' : 'outlined'} color={printerConnected ? 'success' : 'primary'} onClick={handleConnectPrinter}>
             {printerConnected ? `Printer: ${printerName || 'Connected'}` : 'Connect Printer'}
           </Button>
+          <Button variant="outlined" color="secondary" sx={{ ml: 1 }} onClick={() => setAdminPanelOpen(true)}>Admin Panel</Button>
         </Box>
       </Paper>
 
@@ -308,6 +511,17 @@ const BusTicketing: React.FC = () => {
               disabled={locked}
               size="small"
               placeholder="Conductor's full name"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Bus Phone Number"
+              value={busPhoneNumber}
+              onChange={e => setBusPhoneNumber(e.target.value)}
+              fullWidth
+              disabled={locked}
+              size="small"
+              placeholder="e.g., 0712 345 678"
             />
           </Grid>
         </Grid>
@@ -476,21 +690,23 @@ const BusTicketing: React.FC = () => {
                   <TextField label="Fee ($)" type="number" value={luggageForm.fee} onChange={e => setLuggageForm(f => ({ ...f, fee: e.target.value }))} fullWidth size="small" />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                  <TextField
-                    select
-                    label="Passenger"
-                    value={luggageForm.passenger}
-                    onChange={e => setLuggageForm(f => ({ ...f, passenger: e.target.value }))}
-                    fullWidth
-                    size="small"
-                    required
-                  >
-                    {tickets.map((t, idx) => (
-                      <MenuItem key={idx} value={t.passenger_name || t.passengerName || ''}>
-                        {t.passenger_name || t.passengerName || `Passenger #${idx + 1}`}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  <Autocomplete
+                    freeSolo
+                    options={tickets.map(t => t.passenger_name || t.passengerName || '').filter(Boolean)}
+                    value={luggageForm.passenger || ''}
+                    onInputChange={(_, newValue) => setLuggageForm(f => ({ ...f, passenger: newValue || '' }))}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Passenger or Parcel Name"
+                        fullWidth
+                        size="small"
+                        required
+                        placeholder="Enter passenger or parcel name"
+                        value={luggageForm.passenger || ''}
+                      />
+                    )}
+                  />
                 </Grid>
                 <Grid item xs={12} md={2}>
                   <Button type="submit" variant="contained" color="primary" fullWidth>Add Luggage</Button>
@@ -521,7 +737,16 @@ const BusTicketing: React.FC = () => {
                           <TableCell>{item.passenger}</TableCell>
                           <TableCell>
                             <Button size="small" variant="outlined" onClick={() => {
-                              setLuggageTicketData({ ...item, busRegistration: busRegistration || '', origin: origin || '', destination: destination || '', departureDate: new Date().toISOString().split('T')[0], driverName: driverName || '', conductorName: conductorName || '' });
+                              setLuggageTicketData({
+                                ...item,
+                                busRegistration: busRegistration || '',
+                                origin: origin || '',
+                                destination: destination || '',
+                                departureDate: new Date().toISOString().split('T')[0],
+                                driverName: driverName || '',
+                                conductorName: conductorName || '',
+                                busPhoneNumber: busPhoneNumber || '',
+                              });
                               setShowLuggageTicket(true);
                             }}>Print</Button>
                           </TableCell>
@@ -663,6 +888,35 @@ const BusTicketing: React.FC = () => {
         )}
       </Paper>
 
+      {/* Add dashboard summary above trip control */}
+      {dashboardStats.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" fontWeight={700} gutterBottom>Bus Financial Dashboard</Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Bus</TableCell>
+                  <TableCell>Gross</TableCell>
+                  <TableCell>Expenses</TableCell>
+                  <TableCell>Net Profit</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {dashboardStats.map(([bus, stat]) => (
+                  <TableRow key={bus}>
+                    <TableCell>{bus}</TableCell>
+                    <TableCell>${stat.gross.toFixed(2)}</TableCell>
+                    <TableCell>${stat.expenses.toFixed(2)}</TableCell>
+                    <TableCell>${stat.net.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
       <Dialog open={showTicket} onClose={() => setShowTicket(false)} maxWidth="sm" fullWidth>
         {ticketData && (
           <>
@@ -697,16 +951,17 @@ const BusTicketing: React.FC = () => {
             <Typography variant="h6" gutterBottom>Luggage Ticket Preview</Typography>
             <LuggageTicketPreview luggageData={{
               ticketNumber: 'LUG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-              description: luggageTicketData.description,
-              weight: luggageTicketData.weight,
-              fee: luggageTicketData.fee,
-              passenger: luggageTicketData.passenger,
-              busRegistration: luggageTicketData.busRegistration,
-              origin: luggageTicketData.origin,
-              destination: luggageTicketData.destination,
-              date: luggageTicketData.departureDate,
-              driverName: luggageTicketData.driverName,
-              conductorName: luggageTicketData.conductorName,
+              description: luggageTicketData.description || '',
+              weight: luggageTicketData.weight || '',
+              fee: luggageTicketData.fee || '',
+              passenger: luggageTicketData.passenger || '',
+              busRegistration: luggageTicketData.busRegistration || '',
+              origin: luggageTicketData.origin || '',
+              destination: luggageTicketData.destination || '',
+              date: luggageTicketData.departureDate || '',
+              driverName: luggageTicketData.driverName || '',
+              conductorName: luggageTicketData.conductorName || '',
+              busPhoneNumber: luggageTicketData.busPhoneNumber || '',
             }} />
             <Box textAlign="right" mt={2}>
               <Button
@@ -720,19 +975,21 @@ const BusTicketing: React.FC = () => {
                   try {
                     await printThermalLuggageReceipt({
                       ticketNumber: 'LUG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-                      busRegistration: luggageTicketData.busRegistration,
-                      origin: luggageTicketData.origin,
-                      destination: luggageTicketData.destination,
-                      departureDate: luggageTicketData.departureDate,
+                      busRegistration: luggageTicketData.busRegistration || '',
+                      origin: luggageTicketData.origin || '',
+                      destination: luggageTicketData.destination || '',
+                      departureDate: luggageTicketData.departureDate || '',
                       issueDate: new Date().toISOString().split('T')[0],
                       issueTime: new Date().toLocaleTimeString(),
-                      driverName: luggageTicketData.driverName,
-                      conductorName: luggageTicketData.conductorName,
-                      luggageDescription: luggageTicketData.description,
-                      luggageOwnerName: luggageTicketData.passenger,
-                      price: parseFloat(luggageTicketData.fee),
+                      driverName: luggageTicketData.driverName || '',
+                      conductorName: luggageTicketData.conductorName || '',
+                      // Only pass busPhoneNumber if allowed by type
+                      ...(typeof luggageTicketData.busPhoneNumber === 'string' ? { busPhoneNumber: luggageTicketData.busPhoneNumber } : {}),
+                      luggageDescription: luggageTicketData.description || '',
+                      luggageOwnerName: luggageTicketData.passenger || '',
+                      price: parseFloat(luggageTicketData.fee || '0'),
                       discount: 0,
-                      totalPrice: parseFloat(luggageTicketData.fee),
+                      totalPrice: parseFloat(luggageTicketData.fee || '0'),
                       paymentMethod: 'Cash',
                       issueLocation: 'Onboard',
                       agentName: driverName,
@@ -752,6 +1009,9 @@ const BusTicketing: React.FC = () => {
       <Dialog open={showTripSummary} onClose={() => {
         setShowTripSummary(false);
         setTripId(null); // Clear tripId only after closing the summary
+        setTickets([]);
+        setLuggageList([]);
+        setExpensesList([]);
       }} maxWidth="sm" fullWidth>
         <Paper sx={{ p: 4 }}>
           <Typography variant="h5" fontWeight={700} gutterBottom sx={{ fontSize: { xs: 18, md: 24 } }}>Trip Summary</Typography>
@@ -876,7 +1136,65 @@ const BusTicketing: React.FC = () => {
             </Box>
           </TableContainer>
           <Box mt={2} textAlign="right">
+            <Button variant="contained" color="primary" onClick={handlePrintTripSummary} sx={{ mr: 2 }}>Print Trip Summary</Button>
             <Button variant="contained" color="primary" onClick={() => setShowTripSummary(false)}>Close</Button>
+          </Box>
+        </Paper>
+      </Dialog>
+
+      <Dialog open={adminPanelOpen} onClose={() => setAdminPanelOpen(false)} maxWidth="md" fullWidth>
+        <Paper sx={{ p: 4 }}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>Admin Panel - Trip History</Typography>
+          <TableContainer sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Bus</TableCell>
+                  <TableCell>Route</TableCell>
+                  <TableCell>Driver</TableCell>
+                  <TableCell>Start</TableCell>
+                  <TableCell>End</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Tickets</TableCell>
+                  <TableCell>Revenue</TableCell>
+                  <TableCell>Expenses</TableCell>
+                  <TableCell>Profit</TableCell>
+                  <TableCell>Print</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {allTrips.length === 0 ? (
+                  <TableRow><TableCell colSpan={11} align="center">No trips found</TableCell></TableRow>
+                ) : (
+                  allTrips.map((trip, idx) => {
+                    const summary = adminSummary[trip.id] || { tickets: [], luggage: [], expenses: [] };
+                    const totalRevenue = summary.tickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
+                    const totalExpenses = summary.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+                    const profit = totalRevenue - totalExpenses;
+                    return (
+                      <TableRow key={trip.id}>
+                        <TableCell>{trip.bus_registration}</TableCell>
+                        <TableCell>{trip.route}</TableCell>
+                        <TableCell>{trip.driver}</TableCell>
+                        <TableCell>{trip.start_time}</TableCell>
+                        <TableCell>{trip.end_time || '-'}</TableCell>
+                        <TableCell>{trip.status}</TableCell>
+                        <TableCell>{summary.tickets.length}</TableCell>
+                        <TableCell>${totalRevenue.toFixed(2)}</TableCell>
+                        <TableCell>${totalExpenses.toFixed(2)}</TableCell>
+                        <TableCell>${profit.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button size="small" variant="outlined" onClick={() => handleAdminPrintSummary(trip)}>Print</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box textAlign="right">
+            <Button variant="contained" color="primary" onClick={() => setAdminPanelOpen(false)}>Close</Button>
           </Box>
         </Paper>
       </Dialog>

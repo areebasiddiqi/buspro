@@ -15,6 +15,9 @@ interface TicketPreviewProps {
     date: string;
     passengerName?: string;
     discount?: string;
+    driverName?: string;
+    conductorName?: string;
+    busPhoneNumber?: string;
   };
 }
 
@@ -22,6 +25,22 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState<BluetoothDevice | null>(null);
   const [characteristic, setCharacteristic] = useState<BluetoothRemoteGATTCharacteristic | null>(null);
+
+  // Add missing type declarations for Bluetooth types if not present
+  // @ts-ignore
+  // eslint-disable-next-line
+  declare global {
+    interface Navigator {
+      bluetooth?: any;
+    }
+  }
+  // Fallback types for BluetoothDevice and BluetoothRemoteGATTCharacteristic
+  // @ts-ignore
+  // eslint-disable-next-line
+  type BluetoothDevice = any;
+  // @ts-ignore
+  // eslint-disable-next-line
+  type BluetoothRemoteGATTCharacteristic = any;
 
   const connectToPrinter = async () => {
     try {
@@ -40,7 +59,7 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
       setCharacteristic(char);
       alert('Connected to printer!');
       console.log('Successfully connected to printer:', device.name);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bluetooth connection failed:', error);
       alert('Failed to connect: ' + error.message);
     }
@@ -67,7 +86,7 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
       }
       alert('Test print command sent!');
       console.log('Test print command sent successfully.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Printing failed:', error);
       alert('Failed to print: ' + error.message);
     }
@@ -172,6 +191,36 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
                 {ticketData.paymentMethod.toUpperCase()}
               </Typography>
             </Grid>
+            {ticketData.driverName && (
+              <Grid item xs={6}>
+                <Typography variant="body2" color="textSecondary">
+                  Driver
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {ticketData.driverName}
+                </Typography>
+              </Grid>
+            )}
+            {ticketData.conductorName && (
+              <Grid item xs={6}>
+                <Typography variant="body2" color="textSecondary">
+                  Conductor
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {ticketData.conductorName}
+                </Typography>
+              </Grid>
+            )}
+            {ticketData.busPhoneNumber && (
+              <Grid item xs={12}>
+                <Typography variant="body2" color="textSecondary">
+                  Bus Phone
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {ticketData.busPhoneNumber}
+                </Typography>
+              </Grid>
+            )}
           </Grid>
 
           <Box mt={2} textAlign="center">
@@ -207,6 +256,7 @@ interface LuggageTicketPreviewProps {
     date: string;
     driverName?: string;
     conductorName?: string;
+    busPhoneNumber?: string;
   };
 }
 
@@ -329,6 +379,16 @@ export const LuggageTicketPreview: React.FC<LuggageTicketPreviewProps> = ({ lugg
                 </Typography>
                 <Typography variant="body1" gutterBottom>
                   {luggageData.conductorName}
+                </Typography>
+              </Grid>
+            )}
+            {luggageData.busPhoneNumber && (
+              <Grid item xs={12}>
+                <Typography variant="body2" color="textSecondary">
+                  Bus Phone
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {luggageData.busPhoneNumber}
                 </Typography>
               </Grid>
             )}
