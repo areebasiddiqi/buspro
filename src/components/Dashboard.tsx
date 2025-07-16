@@ -383,12 +383,18 @@ const Dashboard: React.FC = () => {
                         const passengers = tickets.filter(t => t.bus_registration === bus.registration && tripIds.includes(t.trip_id)).length;
                         const luggageCount = luggage.filter(l => tripIds.includes(l.trip_id)).length;
                         const expensesSum = tripExpenses.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+                        // Find last ticket time for this bus
+                        const busTickets = tickets.filter(t => t.bus_registration === bus.registration);
+                        const lastTicket = busTickets.reduce((latest, t) => {
+                          const tDate = new Date(t.created_at || t.date);
+                          return (!latest || tDate > latest) ? tDate : latest;
+                        }, null as Date | null);
                         return (
                           <TableRow key={bus.id}>
                             <TableCell>{bus.registration}</TableCell>
                             <TableCell>{bus.model}</TableCell>
                             <TableCell>{bus.status}</TableCell>
-                            <TableCell>{bus.lastTicketTime ? dayjs(bus.lastTicketTime).format('YYYY-MM-DD HH:mm') : ''}</TableCell>
+                            <TableCell>{lastTicket ? dayjs(lastTicket).format('YYYY-MM-DD HH:mm') : ''}</TableCell>
                             <TableCell>{passengers}</TableCell>
                             <TableCell>{luggageCount}</TableCell>
                             <TableCell>${expensesSum.toFixed(2)}</TableCell>

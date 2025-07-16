@@ -9,7 +9,9 @@ import {
   createExpense,
   getSales,
   getBuses,
-  createBus
+  createBus,
+  deleteRoute,
+  deleteBus
 } from '../services/databaseService';
 import type { Schedule as ScheduleType, Route as RouteType, Expense as ExpenseType, Sale as SaleType, Bus } from '../types/database.types.ts';
 import {
@@ -29,8 +31,11 @@ import {
   TableHead,
   TableRow,
   MenuItem,
+  IconButton,
+  Dialog,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -125,6 +130,9 @@ const BusManagement: React.FC = () => {
     description: '',
     bus_id: '',
   });
+
+  // Add state for confirmation dialog
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; type: 'route' | 'bus' | null; id: string | null }>({ open: false, type: null, id: null });
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -352,6 +360,34 @@ const BusManagement: React.FC = () => {
     }
   };
 
+  // Delete handlers
+  const handleDeleteRoute = async (routeId: string) => {
+    setConfirmDialog({ open: true, type: 'route', id: routeId });
+  };
+  const handleDeleteBus = async (busId: string) => {
+    setConfirmDialog({ open: true, type: 'bus', id: busId });
+  };
+  const handleConfirmDelete = async () => {
+    if (confirmDialog.type === 'route' && confirmDialog.id) {
+      await deleteRoute(confirmDialog.id);
+      setRoutes(await getRoutes().then(routesData => routesData.map(item => ({
+        id: item.id,
+        name: item.name,
+        startPoint: item.start_point,
+        endPoint: item.end_point,
+        distance: item.distance.toString(),
+        fare: item.fare.toString()
+      }))));
+    } else if (confirmDialog.type === 'bus' && confirmDialog.id) {
+      await deleteBus(confirmDialog.id);
+      setBuses(await getBuses());
+    }
+    setConfirmDialog({ open: false, type: null, id: null });
+  };
+  const handleCancelDelete = () => {
+    setConfirmDialog({ open: false, type: null, id: null });
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 3 }}>
@@ -553,16 +589,17 @@ const BusManagement: React.FC = () => {
                       <TableCell>End Point</TableCell>
                       <TableCell>Distance</TableCell>
                       <TableCell>Fare</TableCell>
+                      <TableCell>Delete</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {loading.routes ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center">Loading routes...</TableCell>
+                        <TableCell colSpan={6} align="center">Loading routes...</TableCell>
                       </TableRow>
                     ) : routes.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center">No routes found</TableCell>
+                        <TableCell colSpan={6} align="center">No routes found</TableCell>
                       </TableRow>
                     ) : (
                       routes.map((route, index) => (
@@ -572,6 +609,11 @@ const BusManagement: React.FC = () => {
                           <TableCell>{route.endPoint}</TableCell>
                           <TableCell>{route.distance} km</TableCell>
                           <TableCell>${route.fare}</TableCell>
+                          <TableCell>
+                            <IconButton color="error" onClick={() => handleDeleteRoute(route.id)} size="small">
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -772,11 +814,12 @@ const BusManagement: React.FC = () => {
                     <TableCell>Capacity</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Notes</TableCell>
+                    <TableCell>Delete</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {buses.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} align="center">No buses found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} align="center">No buses found</TableCell></TableRow>
                   ) : (
                     buses.map(bus => (
                       <TableRow key={bus.id}>
@@ -785,6 +828,11 @@ const BusManagement: React.FC = () => {
                         <TableCell>{bus.capacity}</TableCell>
                         <TableCell>{bus.status}</TableCell>
                         <TableCell>{bus.notes}</TableCell>
+                        <TableCell>
+                          <IconButton color="error" onClick={() => handleDeleteBus(bus.id)} size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -794,6 +842,20 @@ const BusManagement: React.FC = () => {
           </Paper>
         </TabPanel>
       </Paper>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onClose={handleCancelDelete}>
+        <Box sx={{ p: 3, minWidth: 300 }}>
+          <Typography variant="h6" gutterBottom>Confirm Delete</Typography>
+          <Typography gutterBottom>
+            Are you sure you want to delete this {confirmDialog.type === 'route' ? 'route' : 'bus'}?
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+            <Button onClick={handleCancelDelete} color="primary">Cancel</Button>
+            <Button onClick={handleConfirmDelete} color="error" variant="contained">Delete</Button>
+          </Box>
+        </Box>
+      </Dialog>
     </Container>
   );
 };

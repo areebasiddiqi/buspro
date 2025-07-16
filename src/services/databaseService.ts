@@ -67,6 +67,15 @@ export const createRoute = async (route: Omit<RouteType, 'id' | 'created_at'>): 
   return data;
 };
 
+// Add deleteRoute
+export const deleteRoute = async (routeId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('routes')
+    .delete()
+    .eq('id', routeId);
+  if (error) throw error;
+};
+
 // Expenses
 export const getExpenses = async (): Promise<ExpenseType[]> => {
   const { data, error } = await supabase
@@ -129,6 +138,15 @@ export const createBus = async (bus) => {
     .single();
   if (error) throw error;
   return data;
+};
+
+// Add deleteBus
+export const deleteBus = async (busId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('buses')
+    .delete()
+    .eq('id', busId);
+  if (error) throw error;
 };
 
 // Luggage

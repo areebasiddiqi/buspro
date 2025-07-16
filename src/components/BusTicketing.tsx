@@ -20,7 +20,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TicketPreview from './TicketPreview';
 import dayjs from 'dayjs';
-import { printThermalReceipt, connectThermalPrinter } from '../lib/printer-service';
+import { printThermalReceipt, connectThermalPrinter, printThermalLuggageReceipt } from '../lib/printer-service';
 
 const tabLabels = ['Passenger', 'Luggage', 'Expenses', 'Manifest'];
 
@@ -59,6 +59,10 @@ const BusTicketing: React.FC = () => {
   const [passengerName, setPassengerName] = useState('');
   const [printerConnected, setPrinterConnected] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
+  const [showLuggageTicket, setShowLuggageTicket] = useState(false);
+  const [luggageTicketData, setLuggageTicketData] = useState<any>(null);
+  const [manifestPassword, setManifestPassword] = useState('');
+  const [manifestUnlocked, setManifestUnlocked] = useState(false);
 
   // Mock metrics
   const totalTickets = tickets.length;
@@ -247,7 +251,7 @@ const BusTicketing: React.FC = () => {
             <Autocomplete
               freeSolo
               options={buses.map(bus => bus.registration)}
-              value={busRegistration}
+              value={busRegistration || ''}
               onInputChange={(_, newValue) => setBusRegistration(newValue)}
               renderInput={(params) => (
               <TextField
@@ -266,7 +270,7 @@ const BusTicketing: React.FC = () => {
             <Autocomplete
               freeSolo
               options={routes.map(route => route.name)}
-              value={selectedRoute ? selectedRoute.name : ''}
+              value={selectedRoute && selectedRoute.name ? selectedRoute.name : ''}
               onInputChange={(_, newValue) => {
                 setSelectedRouteId('');
                 setSelectedRoute(newValue ? { id: '', name: newValue, start_point: '', end_point: '', distance: 0, fare: 0 } : null);
@@ -502,11 +506,12 @@ const BusTicketing: React.FC = () => {
                       <TableCell>Weight</TableCell>
                       <TableCell>Fee</TableCell>
                       <TableCell>Passenger</TableCell>
+                      <TableCell>Print</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {luggageList.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} align="center">No luggage added</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} align="center">No luggage added</TableCell></TableRow>
                     ) : (
                       luggageList.map((item, idx) => (
                         <TableRow key={idx}>
@@ -514,6 +519,12 @@ const BusTicketing: React.FC = () => {
                           <TableCell>{item.weight}</TableCell>
                           <TableCell>{item.fee}</TableCell>
                           <TableCell>{item.passenger}</TableCell>
+                          <TableCell>
+                            <Button size="small" variant="outlined" onClick={() => {
+                              setLuggageTicketData({ ...item, busRegistration: busRegistration || '', origin: origin || '', destination: destination || '', departureDate: new Date().toISOString().split('T')[0], driverName: driverName || '', conductorName: conductorName || '' });
+                              setShowLuggageTicket(true);
+                            }}>Print</Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -583,41 +594,71 @@ const BusTicketing: React.FC = () => {
         )}
         {tab === 3 && (
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Manifest</Typography>
-            <TableContainer>
-              <Box sx={{ overflowX: 'auto' }}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Ticket #</TableCell>
-                      <TableCell>Origin</TableCell>
-                      <TableCell>Destination</TableCell>
-                      <TableCell>Price</TableCell>
-                      <TableCell>Discount</TableCell>
-                      <TableCell>Payment</TableCell>
-                      <TableCell>Date</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {tickets.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} align="center">No tickets sold</TableCell></TableRow>
-                    ) : (
-                      tickets.map((t, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
-                          <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
-                          <TableCell>{t.destination}</TableCell>
-                          <TableCell>{t.price}</TableCell>
-                          <TableCell>{t.discount || '0.00'}</TableCell>
-                          <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
-                          <TableCell>{t.date}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+            {!manifestUnlocked ? (
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>Enter Password to View Manifest</Typography>
+                <TextField
+                  type="password"
+                  label="Password"
+                  value={manifestPassword || ''}
+                  onChange={e => setManifestPassword(e.target.value || '')}
+                  sx={{ mb: 2 }}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => {
+                    if (manifestPassword === 'admin123') { // Change password as needed
+                      setManifestUnlocked(true);
+                    } else {
+                      alert('Incorrect password');
+                    }
+                  }}
+                >
+                  Unlock
+                </Button>
               </Box>
-            </TableContainer>
+            ) : (
+              // ... existing manifest content ...
+              <Box>
+                {/* Manifest Table as before */}
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>Manifest</Typography>
+                <TableContainer>
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Ticket #</TableCell>
+                          <TableCell>Origin</TableCell>
+                          <TableCell>Destination</TableCell>
+                          <TableCell>Price</TableCell>
+                          <TableCell>Discount</TableCell>
+                          <TableCell>Payment</TableCell>
+                          <TableCell>Date</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {tickets.length === 0 ? (
+                          <TableRow><TableCell colSpan={7} align="center">No tickets sold</TableCell></TableRow>
+                        ) : (
+                          tickets.map((t, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{t.ticket_number || t.ticketNumber}</TableCell>
+                              <TableCell>{t.pickup_point || t.pickupPoint}</TableCell>
+                              <TableCell>{t.destination}</TableCell>
+                              <TableCell>{t.price}</TableCell>
+                              <TableCell>{t.discount || '0.00'}</TableCell>
+                              <TableCell>{t.payment_method || t.paymentMethod}</TableCell>
+                              <TableCell>{t.date}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </TableContainer>
+              </Box>
+            )}
           </Box>
         )}
       </Paper>
@@ -647,6 +688,63 @@ const BusTicketing: React.FC = () => {
               </Button>
             </Box>
           </>
+        )}
+      </Dialog>
+
+      <Dialog open={showLuggageTicket} onClose={() => setShowLuggageTicket(false)} maxWidth="sm" fullWidth>
+        {luggageTicketData && (
+          <Box p={3}>
+            <Typography variant="h6" gutterBottom>Luggage Ticket Preview</Typography>
+            <Box mb={2}>
+              <Typography>Description: {luggageTicketData.description}</Typography>
+              <Typography>Weight: {luggageTicketData.weight}</Typography>
+              <Typography>Fee: ${luggageTicketData.fee}</Typography>
+              <Typography>Passenger: {luggageTicketData.passenger}</Typography>
+              <Typography>Bus: {luggageTicketData.busRegistration}</Typography>
+              <Typography>From: {luggageTicketData.origin}</Typography>
+              <Typography>To: {luggageTicketData.destination}</Typography>
+              <Typography>Date: {luggageTicketData.departureDate}</Typography>
+              <Typography>Driver: {luggageTicketData.driverName}</Typography>
+              <Typography>Conductor: {luggageTicketData.conductorName}</Typography>
+            </Box>
+            <Box textAlign="right">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={async () => {
+                  if (!printerConnected) {
+                    alert('Please connect a Bluetooth printer first.');
+                    return;
+                  }
+                  try {
+                    await printThermalLuggageReceipt({
+                      ticketNumber: 'LUG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                      busRegistration: luggageTicketData.busRegistration,
+                      origin: luggageTicketData.origin,
+                      destination: luggageTicketData.destination,
+                      departureDate: luggageTicketData.departureDate,
+                      issueDate: new Date().toISOString().split('T')[0],
+                      issueTime: new Date().toLocaleTimeString(),
+                      driverName: luggageTicketData.driverName,
+                      conductorName: luggageTicketData.conductorName,
+                      luggageDescription: luggageTicketData.description,
+                      luggageOwnerName: luggageTicketData.passenger,
+                      price: parseFloat(luggageTicketData.fee),
+                      discount: 0,
+                      totalPrice: parseFloat(luggageTicketData.fee),
+                      paymentMethod: 'Cash',
+                      issueLocation: 'Onboard',
+                      agentName: driverName,
+                    });
+                  } catch (err) {
+                    alert('Failed to print luggage ticket.');
+                  }
+                }}
+              >
+                Print Luggage Ticket
+              </Button>
+            </Box>
+          </Box>
         )}
       </Dialog>
 

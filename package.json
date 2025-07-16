@@ -16,6 +16,9 @@
     "supabase:setup:unix": "bash ./scripts/run-migrations.sh"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.2",
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/core": "^7.4.2",
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.15.3",
@@ -25,7 +28,9 @@
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.6.5",
     "dayjs": "^1.11.13",
+    "expo-cli": "^6.3.10",
     "html2canvas": "^1.4.1",
+    "metro-core": "^0.83.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.3",

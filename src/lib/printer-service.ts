@@ -29,6 +29,28 @@ export interface ReceiptData {
   passengerName: string;
 }
 
+export interface LuggageReceiptData {
+  ticketNumber: string;
+  busRegistration: string;
+  origin: string;
+  destination: string;
+  departureDate: string;
+  issueDate: string;
+  issueTime: string;
+  driverName?: string;
+  conductorName?: string;
+  busContactNumber?: string;
+  luggageDescription: string;
+  luggageOwnerName?: string;
+  luggageOwnerPhone?: string;
+  price: number;
+  discount: number;
+  totalPrice: number;
+  paymentMethod: string;
+  issueLocation: string;
+  agentName: string;
+}
+
 class BluetoothPrinterService {
   private device: BluetoothDevice | null = null;
   private writeCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
@@ -122,6 +144,12 @@ export async function disconnectThermalPrinter(): Promise<void> {
 export async function printThermalReceipt(data: ReceiptData): Promise<void> {
   // Format a simple ticket for now (customize as needed)
   const text = `TIMBOON BUS\nPASSENGER TICKET\n==============================\nTicket: ${data.ticketNumber}\nDate: ${data.date}\n------------------------------\nBus: ${data.busRegistration}\n${data.pickupPoint} -> ${data.destination}\n------------------------------\nPassenger: ${data.passengerName}\n------------------------------\nPrice: $${data.price}\nDiscount: $${data.discount}\nTOTAL: $${(parseFloat(data.price) - parseFloat(data.discount)).toFixed(2)}\nMethod: ${data.paymentMethod}\n==============================\nThank you for traveling!\n`;
+  await getPrinterInstance().printText(text);
+}
+
+export async function printThermalLuggageReceipt(data: LuggageReceiptData): Promise<void> {
+  // Format a simple luggage ticket for Bluetooth printer
+  const text = `TIMBOON BUS\nLUGGAGE TICKET\n==============================\nTicket: ${data.ticketNumber}\nDate: ${data.issueDate} ${data.issueTime}\n------------------------------\nBus: ${data.busRegistration}\n${data.origin} -> ${data.destination}\nDeparture: ${data.departureDate}\n------------------------------\nLuggage: ${data.luggageDescription}\nOwner: ${data.luggageOwnerName || '-'}\nContact: ${data.luggageOwnerPhone || '-'}\n------------------------------\nFee: $${data.price.toFixed(2)}\nDiscount: $${data.discount.toFixed(2)}\nTOTAL: $${data.totalPrice.toFixed(2)}\nMethod: ${data.paymentMethod}\n------------------------------\nLocation: ${data.issueLocation}\nAgent: ${data.agentName}\n==============================\nKEEP THIS RECEIPT FOR LUGGAGE CLAIM\nPresent this ticket when collecting your luggage\nThank you for traveling!\n`;
   await getPrinterInstance().printText(text);
 }
 
