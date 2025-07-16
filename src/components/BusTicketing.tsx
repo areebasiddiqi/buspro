@@ -18,7 +18,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TicketPreview from './TicketPreview';
+import TicketPreview, { LuggageTicketPreview } from './TicketPreview';
 import dayjs from 'dayjs';
 import { printThermalReceipt, connectThermalPrinter, printThermalLuggageReceipt } from '../lib/printer-service';
 
@@ -695,19 +695,20 @@ const BusTicketing: React.FC = () => {
         {luggageTicketData && (
           <Box p={3}>
             <Typography variant="h6" gutterBottom>Luggage Ticket Preview</Typography>
-            <Box mb={2}>
-              <Typography>Description: {luggageTicketData.description}</Typography>
-              <Typography>Weight: {luggageTicketData.weight}</Typography>
-              <Typography>Fee: ${luggageTicketData.fee}</Typography>
-              <Typography>Passenger: {luggageTicketData.passenger}</Typography>
-              <Typography>Bus: {luggageTicketData.busRegistration}</Typography>
-              <Typography>From: {luggageTicketData.origin}</Typography>
-              <Typography>To: {luggageTicketData.destination}</Typography>
-              <Typography>Date: {luggageTicketData.departureDate}</Typography>
-              <Typography>Driver: {luggageTicketData.driverName}</Typography>
-              <Typography>Conductor: {luggageTicketData.conductorName}</Typography>
-            </Box>
-            <Box textAlign="right">
+            <LuggageTicketPreview luggageData={{
+              ticketNumber: 'LUG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+              description: luggageTicketData.description,
+              weight: luggageTicketData.weight,
+              fee: luggageTicketData.fee,
+              passenger: luggageTicketData.passenger,
+              busRegistration: luggageTicketData.busRegistration,
+              origin: luggageTicketData.origin,
+              destination: luggageTicketData.destination,
+              date: luggageTicketData.departureDate,
+              driverName: luggageTicketData.driverName,
+              conductorName: luggageTicketData.conductorName,
+            }} />
+            <Box textAlign="right" mt={2}>
               <Button
                 variant="contained"
                 color="primary"

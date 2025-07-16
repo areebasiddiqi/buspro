@@ -193,4 +193,161 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
   );
 };
 
+// Luggage Ticket Preview
+interface LuggageTicketPreviewProps {
+  luggageData: {
+    ticketNumber: string;
+    description: string;
+    weight: string | number;
+    fee: string | number;
+    passenger: string;
+    busRegistration: string;
+    origin: string;
+    destination: string;
+    date: string;
+    driverName?: string;
+    conductorName?: string;
+  };
+}
+
+export const LuggageTicketPreview: React.FC<LuggageTicketPreviewProps> = ({ luggageData }) => {
+  const ticketRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    if (ticketRef.current) {
+      const canvas = await html2canvas(ticketRef.current);
+      const link = document.createElement('a');
+      link.download = `luggage-ticket-${luggageData.ticketNumber}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  };
+
+  return (
+    <Box sx={{ maxWidth: 340, margin: 'auto' }}>
+      <div ref={ticketRef}>
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 2, 
+            mt: 3, 
+            border: '1px dashed #000',
+            backgroundColor: '#fff',
+            maxWidth: 320,
+            margin: 'auto',
+            borderRadius: 2
+          }}
+        >
+          <Box textAlign="center" mb={2}>
+            <Typography variant="h6" gutterBottom>
+              Bus Pro Luggage Ticket
+            </Typography>
+            <Typography variant="subtitle2" color="textSecondary">
+              Ticket #: {luggageData.ticketNumber}
+            </Typography>
+          </Box>
+
+          <Grid container spacing={1}>
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">
+                Luggage Description
+              </Typography>
+              <Typography variant="body1" gutterBottom fontWeight={600}>
+                {luggageData.description}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                Weight
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.weight} kg
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                Fee
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                ${luggageData.fee}
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">
+                Passenger
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.passenger}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                Bus Reg
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.busRegistration}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                Date
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.date}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                From
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.origin}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">
+                To
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {luggageData.destination}
+              </Typography>
+            </Grid>
+            {luggageData.driverName && (
+              <Grid item xs={6}>
+                <Typography variant="body2" color="textSecondary">
+                  Driver
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {luggageData.driverName}
+                </Typography>
+              </Grid>
+            )}
+            {luggageData.conductorName && (
+              <Grid item xs={6}>
+                <Typography variant="body2" color="textSecondary">
+                  Conductor
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  {luggageData.conductorName}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+
+          <Box mt={2} textAlign="center">
+            <Typography variant="caption" display="block">
+              Please keep this ticket for luggage claim.
+            </Typography>
+          </Box>
+        </Paper>
+      </div>
+      <Box textAlign="center" mt={2}>
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownload} size="small">
+          Download
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
 export default TicketPreview;
