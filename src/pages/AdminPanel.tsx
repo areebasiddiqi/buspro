@@ -71,6 +71,7 @@ const AdminPanel: React.FC = () => {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [printerConnected, setPrinterConnected] = useState(false);
   const [registerRows, setRegisterRows] = useState<any[]>([]);
+  const [searchDriverConductor, setSearchDriverConductor] = useState('');
   
   // Date range state
   const [startDate, setStartDate] = useState(dayjs().subtract(2, 'year').format('YYYY-MM-DD'));
@@ -437,6 +438,18 @@ const AdminPanel: React.FC = () => {
 
         {/* Trip History Tab */}
         <TabPanel value={adminTab} index={0}>
+          {adminTab === 0 && (
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <TextField
+                label="Search Driver/Conductor"
+                value={searchDriverConductor}
+                onChange={e => setSearchDriverConductor(e.target.value)}
+                size="small"
+                sx={{ maxWidth: 300 }}
+                placeholder="Type driver or conductor name..."
+              />
+            </Box>
+          )}
           <TableContainer sx={{ maxHeight: { xs: 400, sm: 600 } }}>
             <Table size={isMobile ? "small" : "medium"} stickyHeader>
               <TableHead>
@@ -455,12 +468,30 @@ const AdminPanel: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {allTrips.length === 0 ? (
+                {(
+                  allTrips.filter(trip => {
+                    if (!searchDriverConductor.trim()) return true;
+                    const q = searchDriverConductor.trim().toLowerCase();
+                    return (
+                      (trip.driver && trip.driver.toLowerCase().includes(q)) ||
+                      (trip.conductor && trip.conductor.toLowerCase().includes(q))
+                    );
+                  })
+                ).length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isMobile ? 6 : 11} align="center">No trips found</TableCell>
                   </TableRow>
                 ) : (
-                  allTrips.map((trip, idx) => {
+                  (
+                    allTrips.filter(trip => {
+                      if (!searchDriverConductor.trim()) return true;
+                      const q = searchDriverConductor.trim().toLowerCase();
+                      return (
+                        (trip.driver && trip.driver.toLowerCase().includes(q)) ||
+                        (trip.conductor && trip.conductor.toLowerCase().includes(q))
+                      );
+                    })
+                  ).map((trip, idx) => {
                     const summary = adminSummary[trip.id] || { tickets: [], luggage: [], expenses: [] };
                     const grossTickets = summary.tickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
                     const grossLuggage = summary.luggage.reduce((sum, l) => sum + (parseFloat(l.fee) || 0), 0);
