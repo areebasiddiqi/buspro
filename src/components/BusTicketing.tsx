@@ -421,54 +421,46 @@ const BusTicketing: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 } }}>
       {/* Header */}
-      <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Paper sx={{ p: { xs: 1.5, md: 2 }, mb: { xs: 2, md: 3 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
         <Box>
-          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', fontSize: { xs: 18, md: 22 } }}>
             <DirectionsBusIcon sx={{ mr: 1 }} /> Timboon Bus Mobile
         </Typography>
           <Typography variant="body2" color="text.secondary">Conductor & Driver Interface</Typography>
         </Box>
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
           <Chip label={tripActive ? 'Trip Active' : 'No Active Trip'} color={tripActive ? 'success' : 'default'} size="small" />
-          <Button variant={printerConnected ? 'contained' : 'outlined'} color={printerConnected ? 'success' : 'primary'} onClick={handleConnectPrinter}>
+          <Button variant={printerConnected ? 'contained' : 'outlined'} color={printerConnected ? 'success' : 'primary'} onClick={handleConnectPrinter} sx={{ minWidth: 160 }}>
             {printerConnected ? `Printer: ${printerName || 'Connected'}` : 'Connect Printer'}
           </Button>
         </Box>
       </Paper>
 
       {/* Bus Details */}
-      <Paper sx={{ p: 3, mb: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
+      <Paper sx={{ p: { xs: 2, md: 3 }, mb: { xs: 2, md: 3 } }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexDirection={{ xs: 'column', sm: 'row' }} gap={1}>
+          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', fontSize: { xs: 16, md: 20 } }}>
             <DirectionsBusIcon sx={{ mr: 1 }} /> Bus Details
           </Typography>
-          <Button variant="outlined" startIcon={locked ? <LockIcon /> : <LockOpenIcon />} onClick={handleLockToggle}>
+          <Button variant="outlined" startIcon={locked ? <LockIcon /> : <LockOpenIcon />} onClick={handleLockToggle} sx={{ mt: { xs: 1, sm: 0 } }}>
             {locked ? 'Locked' : 'Unlocked'}
           </Button>
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={6}>
             <Autocomplete
               freeSolo
               options={buses.map(bus => bus.registration)}
               value={busRegistration || ''}
               onInputChange={(_, newValue) => setBusRegistration(newValue)}
               renderInput={(params) => (
-              <TextField
-                  {...params}
-                label="Bus Registration"
-                fullWidth
-                required
-              disabled={locked}
-              size="small"
-              placeholder="e.g., ABC-123"
-                />
+                <TextField {...params} label="Bus Registration" fullWidth required disabled={locked} size="small" placeholder="e.g., ABC-123" />
               )}
             />
-            </Grid>
-            <Grid item xs={12} md={6}>
+          </Grid>
+          <Grid item xs={12} sm={6}>
             <Autocomplete
               freeSolo
               options={routes.map(route => route.name)}
@@ -478,94 +470,62 @@ const BusTicketing: React.FC = () => {
                 setSelectedRoute(newValue ? { id: '', name: newValue, start_point: '', end_point: '', distance: 0, fare: 0 } : null);
               }}
               renderInput={(params) => (
-              <TextField
-                  {...params}
-              label="Route"
-                fullWidth
-                  required
-              disabled={locked}
-              size="small"
-                  placeholder="Enter or select route"
-                />
+                <TextField {...params} label="Route" fullWidth required disabled={locked} size="small" placeholder="Enter or select route" />
               )}
             />
-            </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Driver Name"
-              value={driverName}
-              onChange={e => setDriverName(e.target.value)}
-              fullWidth
-              disabled={locked}
-              size="small"
-              placeholder="Driver's full name"
-            />
           </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-              label="Conductor Name"
-              value={conductorName}
-              onChange={e => setConductorName(e.target.value)}
-                fullWidth
-              disabled={locked}
-              size="small"
-              placeholder="Conductor's full name"
-            />
+          <Grid item xs={12} sm={6}>
+            <TextField label="Driver Name" value={driverName} onChange={e => setDriverName(e.target.value)} fullWidth disabled={locked} size="small" placeholder="Driver's full name" />
           </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Bus Phone Number"
-              value={busPhoneNumber}
-              onChange={e => setBusPhoneNumber(e.target.value)}
-              fullWidth
-              disabled={locked}
-              size="small"
-              placeholder="e.g., 0712 345 678"
-            />
+          <Grid item xs={12} sm={6}>
+            <TextField label="Conductor Name" value={conductorName} onChange={e => setConductorName(e.target.value)} fullWidth disabled={locked} size="small" placeholder="Conductor's full name" />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField label="Bus Phone Number" value={busPhoneNumber} onChange={e => setBusPhoneNumber(e.target.value)} fullWidth disabled={locked} size="small" placeholder="e.g., 0712 345 678" />
           </Grid>
         </Grid>
       </Paper>
 
       {/* Trip Control */}
-      <Paper sx={{ p: 3, mb: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
+      <Paper sx={{ p: { xs: 2, md: 3 }, mb: { xs: 2, md: 3 } }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexDirection={{ xs: 'column', sm: 'row' }} gap={1}>
+          <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', fontSize: { xs: 16, md: 20 } }}>
             <ReceiptIcon sx={{ mr: 1 }} /> Trip Control
           </Typography>
         </Box>
         {!tripActive ? (
-          <Button variant="contained" color="primary" startIcon={<PlayArrowIcon />} fullWidth sx={{ py: 1.5, fontSize: 18 }} onClick={handleStartTrip}>
+          <Button variant="contained" color="primary" startIcon={<PlayArrowIcon />} fullWidth sx={{ py: 1.5, fontSize: { xs: 16, md: 18 } }} onClick={handleStartTrip}>
             Start Trip
           </Button>
         ) : (
           <>
             <Grid container spacing={2} mb={2}>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={6} sm={3}>
                 <Paper sx={{ p: 2, textAlign: 'center', background: '#f5faff' }}>
                   <Typography variant="subtitle2" color="text.secondary">Tickets</Typography>
                   <Typography variant="h6" fontWeight={700}>{totalTickets}</Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={6} sm={3}>
                 <Paper sx={{ p: 2, textAlign: 'center', background: '#f5fff5' }}>
                   <Typography variant="subtitle2" color="text.secondary">Revenue</Typography>
                   <Typography variant="h6" fontWeight={700} color="success.main">${totalRevenue.toFixed(2)}</Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={6} sm={3}>
                 <Paper sx={{ p: 2, textAlign: 'center', background: '#fff5f5' }}>
                   <Typography variant="subtitle2" color="text.secondary">Expenses</Typography>
                   <Typography variant="h6" fontWeight={700} color="error.main">${totalExpenses.toFixed(2)}</Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={6} sm={3}>
                 <Paper sx={{ p: 2, textAlign: 'center', background: '#f5fff5' }}>
                   <Typography variant="subtitle2" color="text.secondary">Profit</Typography>
                   <Typography variant="h6" fontWeight={700} color={profit >= 0 ? 'success.main' : 'error.main'}>${profit.toFixed(2)}</Typography>
                 </Paper>
               </Grid>
             </Grid>
-            <Button variant="contained" color="error" startIcon={<StopIcon />} fullWidth sx={{ py: 1.5, fontSize: 18 }} onClick={handleEndTrip}>
+            <Button variant="contained" color="error" startIcon={<StopIcon />} fullWidth sx={{ py: 1.5, fontSize: { xs: 16, md: 18 } }} onClick={handleEndTrip}>
               End Trip & Show Summary
             </Button>
           </>
@@ -573,9 +533,9 @@ const BusTicketing: React.FC = () => {
       </Paper>
 
       {/* Tabs */}
-      <Paper sx={{ p: 3, mb: 2 }}>
+      <Paper sx={{ p: { xs: 2, md: 3 }, mb: { xs: 2, md: 3 } }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ mb: 2 }}>
-          {tabLabels.map((label, idx) => <Tab key={label} label={label} />)}
+          {tabLabels.map((label, idx) => <Tab key={label} label={label} sx={{ fontSize: { xs: 13, md: 16 } }} />)}
         </Tabs>
         <Divider sx={{ mb: 2 }} />
         {tab === 0 && (

@@ -33,9 +33,18 @@ import {
   MenuItem,
   IconButton,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Card,
+  CardContent,
+  Stack,
+  Chip,
+  useTheme,
+  useMediaQuery,
+  alpha
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Add as AddIcon, Delete as DeleteIcon, DirectionsBus, Route as RouteIcon, AttachMoney, Assessment } from '@mui/icons-material';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -74,7 +83,7 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
           {children}
         </Box>
       )}
@@ -84,6 +93,10 @@ function TabPanel(props: TabPanelProps) {
 
 const BusManagement: React.FC = () => {
   const { subscribeToChanges } = useSupabase();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [tabValue, setTabValue] = useState(0);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [routes, setRoutes] = useState<LocalRoute[]>([]);
@@ -151,7 +164,7 @@ const BusManagement: React.FC = () => {
         // Load routes
         setLoading(prev => ({ ...prev, routes: true }));
         const routesData = await getRoutes();
-                setRoutes(routesData.map(item => ({
+        setRoutes(routesData.map(item => ({
           id: item.id,
           name: item.name,
           startPoint: item.start_point,
@@ -205,66 +218,60 @@ const BusManagement: React.FC = () => {
     loadData();
 
     // Set up real-time subscriptions
-    const scheduleSubscription = subscribeToChanges('schedules', (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newItem = payload.new as ScheduleType;
-        setSchedules(prev => [newItem, ...prev]);
-      }
-    });
-
-    const routeSubscription = subscribeToChanges('routes', (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newItem = payload.new as RouteType;
-        setRoutes(prev => [{
-          id: newItem.id,
-          name: newItem.name,
-          startPoint: newItem.start_point,
-          endPoint: newItem.end_point,
-          distance: newItem.distance.toString(),
-          fare: newItem.fare.toString()
-        }, ...prev]);
-      }
-    });
-
-    const expenseSubscription = subscribeToChanges('expenses', (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newItem = payload.new as ExpenseType;
-        setExpenses(prev => [{
-          date: newItem.date,
-          category: newItem.category,
-          amount: newItem.amount.toString(),
-          description: newItem.description,
-          bus_id: newItem.bus_id
-        }, ...prev]);
-      }
-    });
-
-    const saleSubscription = subscribeToChanges('sales', (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newItem = payload.new as SaleType;
-        setSales(prev => [{
-          date: newItem.date,
-          bus_id: newItem.bus_id,
-          route: newItem.route,
-          amount: newItem.amount.toString(),
-          payment_method: newItem.payment_method
-        }, ...prev]);
-      }
-    });
-
-    const busSubscription = subscribeToChanges('buses', (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newItem = payload.new as Bus;
-        setBuses(prev => [newItem, ...prev]);
-      }
-    });
+    const subscriptions = [
+      subscribeToChanges('schedules', (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newItem = payload.new as ScheduleType;
+          setSchedules(prev => [newItem, ...prev]);
+        }
+      }),
+      subscribeToChanges('routes', (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newItem = payload.new as RouteType;
+          setRoutes(prev => [{
+            id: newItem.id,
+            name: newItem.name,
+            startPoint: newItem.start_point,
+            endPoint: newItem.end_point,
+            distance: newItem.distance.toString(),
+            fare: newItem.fare.toString()
+          }, ...prev]);
+        }
+      }),
+      subscribeToChanges('expenses', (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newItem = payload.new as ExpenseType;
+          setExpenses(prev => [{
+            date: newItem.date,
+            category: newItem.category,
+            amount: newItem.amount.toString(),
+            description: newItem.description,
+            bus_id: newItem.bus_id
+          }, ...prev]);
+        }
+      }),
+      subscribeToChanges('sales', (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newItem = payload.new as SaleType;
+          setSales(prev => [{
+            date: newItem.date,
+            bus_id: newItem.bus_id,
+            route: newItem.route,
+            amount: newItem.amount.toString(),
+            payment_method: newItem.payment_method
+          }, ...prev]);
+        }
+      }),
+      subscribeToChanges('buses', (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newItem = payload.new as Bus;
+          setBuses(prev => [newItem, ...prev]);
+        }
+      })
+    ];
 
     return () => {
-      scheduleSubscription.unsubscribe();
-      routeSubscription.unsubscribe();
-      expenseSubscription.unsubscribe();
-      saleSubscription.unsubscribe();
-      busSubscription.unsubscribe();
+      subscriptions.forEach(sub => sub?.unsubscribe?.());
     };
   }, [subscribeToChanges]);
 
@@ -389,48 +396,99 @@ const BusManagement: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom align="center">
-          Bus Management System
-        </Typography>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+      {/* Header */}
+      <Card sx={{ 
+        mb: 3, 
+        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        color: 'white'
+      }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <DirectionsBus sx={{ fontSize: { xs: 32, sm: 40 } }} />
+            <Box>
+              <Typography 
+                variant="h4" 
+                fontWeight={700} 
+                sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}
+              >
+                Fleet Management System
+              </Typography>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  opacity: 0.9,
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
+              >
+                Manage schedules, routes, expenses, and fleet operations
+              </Typography>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
+      <Paper elevation={3} sx={{ overflow: 'hidden' }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={handleTabChange}>
-            <Tab label="Schedules" />
-            <Tab label="Routes" />
-            <Tab label="Expenses" />
-            <Tab label="Sales Report" />
-            <Tab label="Buses" />
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            variant={isMobile ? 'scrollable' : 'standard'}
+            scrollButtons={isMobile ? 'auto' : false}
+            sx={{ px: { xs: 1, sm: 2 } }}
+          >
+            <Tab 
+              label={isMobile ? "Schedule" : "Schedules"} 
+              icon={<RouteIcon />} 
+              iconPosition={isMobile ? "top" : "start"}
+            />
+            <Tab 
+              label="Routes" 
+              icon={<RouteIcon />} 
+              iconPosition={isMobile ? "top" : "start"}
+            />
+            <Tab 
+              label="Expenses" 
+              icon={<AttachMoney />} 
+              iconPosition={isMobile ? "top" : "start"}
+            />
+            <Tab 
+              label={isMobile ? "Sales" : "Sales Report"} 
+              icon={<Assessment />} 
+              iconPosition={isMobile ? "top" : "start"}
+            />
+            <Tab 
+              label="Buses" 
+              icon={<DirectionsBus />} 
+              iconPosition={isMobile ? "top" : "start"}
+            />
           </Tabs>
         </Box>
 
         {/* Schedules Tab */}
         <TabPanel value={tabValue} index={0}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Add New Schedule
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
+            <Grid item xs={12} lg={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    Add New Schedule
+                  </Typography>
+                  <Stack spacing={2}>
                     <TextField
                       fullWidth
                       label="Bus ID"
                       value={newSchedule.bus_id}
                       onChange={(e) => setNewSchedule({ ...newSchedule, bus_id: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Route"
                       value={newSchedule.route}
                       onChange={(e) => setNewSchedule({ ...newSchedule, route: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Departure Time"
@@ -438,9 +496,8 @@ const BusManagement: React.FC = () => {
                       value={newSchedule.departure_time}
                       onChange={(e) => setNewSchedule({ ...newSchedule, departure_time: e.target.value })}
                       InputLabelProps={{ shrink: true }}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Arrival Time"
@@ -448,192 +505,222 @@ const BusManagement: React.FC = () => {
                       value={newSchedule.arrival_time}
                       onChange={(e) => setNewSchedule({ ...newSchedule, arrival_time: e.target.value })}
                       InputLabelProps={{ shrink: true }}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       select
                       label="Frequency"
                       value={newSchedule.frequency}
                       onChange={(e) => setNewSchedule({ ...newSchedule, frequency: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     >
                       <MenuItem value="daily">Daily</MenuItem>
                       <MenuItem value="weekly">Weekly</MenuItem>
                       <MenuItem value="monthly">Monthly</MenuItem>
                     </TextField>
-                  </Grid>
-                  <Grid item xs={12}>
                     <Button
                       fullWidth
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddSchedule}
+                      size={isMobile ? "medium" : "large"}
                     >
                       Add Schedule
                     </Button>
-                  </Grid>
-                </Grid>
-              </Paper>
+                  </Stack>
+                </CardContent>
+              </Card>
             </Grid>
-            <Grid item xs={12} md={8}>
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Bus ID</TableCell>
-                      <TableCell>Route</TableCell>
-                      <TableCell>Departure</TableCell>
-                      <TableCell>Arrival</TableCell>
-                      <TableCell>Frequency</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loading.schedules ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center">Loading schedules...</TableCell>
-                      </TableRow>
-                    ) : schedules.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center">No schedules found</TableCell>
-                      </TableRow>
-                    ) : (
-                      schedules.map((schedule, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{schedule.bus_id}</TableCell>
-                          <TableCell>{schedule.route}</TableCell>
-                          <TableCell>{schedule.departure_time}</TableCell>
-                          <TableCell>{schedule.arrival_time}</TableCell>
-                          <TableCell>{schedule.frequency}</TableCell>
+            <Grid item xs={12} lg={8}>
+              <Card>
+                <CardContent sx={{ p: 0 }}>
+                  <TableContainer sx={{ maxHeight: { xs: 300, sm: 400 } }}>
+                    <Table size={isMobile ? "small" : "medium"} stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Bus ID</TableCell>
+                          <TableCell>Route</TableCell>
+                          {!isMobile && <TableCell>Departure</TableCell>}
+                          {!isMobile && <TableCell>Arrival</TableCell>}
+                          <TableCell>Frequency</TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {loading.schedules ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 3 : 5} align="center">Loading schedules...</TableCell>
+                          </TableRow>
+                        ) : schedules.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 3 : 5} align="center">No schedules found</TableCell>
+                          </TableRow>
+                        ) : (
+                          schedules.map((schedule, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{schedule.bus_id}</TableCell>
+                              <TableCell>{schedule.route}</TableCell>
+                              {!isMobile && <TableCell>{schedule.departure_time}</TableCell>}
+                              {!isMobile && <TableCell>{schedule.arrival_time}</TableCell>}
+                              <TableCell>
+                                <Chip 
+                                  label={schedule.frequency} 
+                                  size="small" 
+                                  color="primary" 
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
             </Grid>
           </Grid>
         </TabPanel>
 
         {/* Routes Tab */}
         <TabPanel value={tabValue} index={1}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Add New Route
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
+            <Grid item xs={12} lg={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    Add New Route
+                  </Typography>
+                  <Stack spacing={2}>
                     <TextField
                       fullWidth
                       label="Route Name"
                       value={newRoute.name}
                       onChange={(e) => setNewRoute({ ...newRoute, name: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Start Point"
                       value={newRoute.startPoint}
                       onChange={(e) => setNewRoute({ ...newRoute, startPoint: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="End Point"
                       value={newRoute.endPoint}
                       onChange={(e) => setNewRoute({ ...newRoute, endPoint: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Distance (km)"
                       type="number"
                       value={newRoute.distance}
                       onChange={(e) => setNewRoute({ ...newRoute, distance: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Fare ($)"
                       type="number"
                       value={newRoute.fare}
                       onChange={(e) => setNewRoute({ ...newRoute, fare: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <Button
                       fullWidth
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddRoute}
+                      size={isMobile ? "medium" : "large"}
                     >
                       Add Route
                     </Button>
-                  </Grid>
-                </Grid>
-              </Paper>
+                  </Stack>
+                </CardContent>
+              </Card>
             </Grid>
-            <Grid item xs={12} md={8}>
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Start Point</TableCell>
-                      <TableCell>End Point</TableCell>
-                      <TableCell>Distance</TableCell>
-                      <TableCell>Fare</TableCell>
-                      <TableCell>Delete</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loading.routes ? (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">Loading routes...</TableCell>
-                      </TableRow>
-                    ) : routes.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">No routes found</TableCell>
-                      </TableRow>
-                    ) : (
-                      routes.map((route, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{route.name}</TableCell>
-                          <TableCell>{route.startPoint}</TableCell>
-                          <TableCell>{route.endPoint}</TableCell>
-                          <TableCell>{route.distance} km</TableCell>
-                          <TableCell>${route.fare}</TableCell>
-                          <TableCell>
-                            <IconButton color="error" onClick={() => handleDeleteRoute(route.id)} size="small">
-                              <DeleteIcon />
-                            </IconButton>
-                          </TableCell>
+            <Grid item xs={12} lg={8}>
+              <Card>
+                <CardContent sx={{ p: 0 }}>
+                  <TableContainer sx={{ maxHeight: { xs: 300, sm: 400 } }}>
+                    <Table size={isMobile ? "small" : "medium"} stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Name</TableCell>
+                          {!isMobile && <TableCell>Start Point</TableCell>}
+                          {!isMobile && <TableCell>End Point</TableCell>}
+                          <TableCell>Distance</TableCell>
+                          <TableCell>Fare</TableCell>
+                          <TableCell align="center">Action</TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {loading.routes ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 4 : 6} align="center">Loading routes...</TableCell>
+                          </TableRow>
+                        ) : routes.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 4 : 6} align="center">No routes found</TableCell>
+                          </TableRow>
+                        ) : (
+                          routes.map((route, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {route.name}
+                                </Typography>
+                                {isMobile && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {route.startPoint} → {route.endPoint}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              {!isMobile && <TableCell>{route.startPoint}</TableCell>}
+                              {!isMobile && <TableCell>{route.endPoint}</TableCell>}
+                              <TableCell>{route.distance} km</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={`$${route.fare}`} 
+                                  size="small" 
+                                  color="success" 
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <IconButton 
+                                  color="error" 
+                                  onClick={() => handleDeleteRoute(route.id)} 
+                                  size="small"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
             </Grid>
           </Grid>
         </TabPanel>
 
         {/* Expenses Tab */}
         <TabPanel value={tabValue} index={2}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Add New Expense
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
+            <Grid item xs={12} lg={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    Add New Expense
+                  </Typography>
+                  <Stack spacing={2}>
                     <TextField
                       fullWidth
                       type="date"
@@ -641,32 +728,29 @@ const BusManagement: React.FC = () => {
                       value={newExpense.date}
                       onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
                       InputLabelProps={{ shrink: true }}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       select
                       label="Category"
                       value={newExpense.category}
                       onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     >
                       <MenuItem value="fuel">Fuel</MenuItem>
                       <MenuItem value="maintenance">Maintenance</MenuItem>
                       <MenuItem value="salary">Salary</MenuItem>
                       <MenuItem value="other">Other</MenuItem>
                     </TextField>
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Amount"
                       type="number"
                       value={newExpense.amount}
                       onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Description"
@@ -674,189 +758,317 @@ const BusManagement: React.FC = () => {
                       rows={2}
                       value={newExpense.description}
                       onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Bus ID"
                       value={newExpense.bus_id}
                       onChange={(e) => setNewExpense({ ...newExpense, bus_id: e.target.value })}
+                      size={isMobile ? "small" : "medium"}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <Button
                       fullWidth
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddExpense}
+                      size={isMobile ? "medium" : "large"}
                     >
                       Add Expense
                     </Button>
-                  </Grid>
-                </Grid>
-              </Paper>
+                  </Stack>
+                </CardContent>
+              </Card>
             </Grid>
-            <Grid item xs={12} md={8}>
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Category</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Description</TableCell>
-                      <TableCell>Bus ID</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loading.expenses ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center">Loading expenses...</TableCell>
-                      </TableRow>
-                    ) : expenses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center">No expenses found</TableCell>
-                      </TableRow>
-                    ) : (
-                      expenses.map((expense, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{expense.date}</TableCell>
-                          <TableCell>{expense.category}</TableCell>
-                          <TableCell>${expense.amount}</TableCell>
-                          <TableCell>{expense.description}</TableCell>
-                          <TableCell>{expense.bus_id}</TableCell>
+            <Grid item xs={12} lg={8}>
+              <Card>
+                <CardContent sx={{ p: 0 }}>
+                  <TableContainer sx={{ maxHeight: { xs: 300, sm: 400 } }}>
+                    <Table size={isMobile ? "small" : "medium"} stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date</TableCell>
+                          <TableCell>Category</TableCell>
+                          <TableCell>Amount</TableCell>
+                          {!isMobile && <TableCell>Description</TableCell>}
+                          {!isMobile && <TableCell>Bus ID</TableCell>}
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {loading.expenses ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 3 : 5} align="center">Loading expenses...</TableCell>
+                          </TableRow>
+                        ) : expenses.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={isMobile ? 3 : 5} align="center">No expenses found</TableCell>
+                          </TableRow>
+                        ) : (
+                          expenses.map((expense, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{expense.date}</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={expense.category} 
+                                  size="small" 
+                                  color="warning" 
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={500} color="error.main">
+                                  ${expense.amount}
+                                </Typography>
+                                {isMobile && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {expense.description} • {expense.bus_id}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              {!isMobile && <TableCell>{expense.description}</TableCell>}
+                              {!isMobile && <TableCell>{expense.bus_id}</TableCell>}
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
             </Grid>
           </Grid>
         </TabPanel>
 
         {/* Sales Report Tab */}
         <TabPanel value={tabValue} index={3}>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Bus ID</TableCell>
-                  <TableCell>Route</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Payment Method</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading.sales ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">Loading sales data...</TableCell>
-                  </TableRow>
-                ) : sales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">No sales data found</TableCell>
-                  </TableRow>
-                ) : (
-                  sales.map((sale, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{sale.date}</TableCell>
-                      <TableCell>{sale.bus_id}</TableCell>
-                      <TableCell>{sale.route}</TableCell>
-                      <TableCell>${sale.amount}</TableCell>
-                      <TableCell>{sale.payment_method}</TableCell>
+          <Card>
+            <CardContent sx={{ p: 0 }}>
+              <Box sx={{ p: { xs: 2, sm: 3 }, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight={600}>
+                  Sales Report
+                </Typography>
+              </Box>
+              <TableContainer sx={{ maxHeight: { xs: 400, sm: 500 } }}>
+                <Table size={isMobile ? "small" : "medium"} stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Bus ID</TableCell>
+                      {!isMobile && <TableCell>Route</TableCell>}
+                      <TableCell>Amount</TableCell>
+                      {!isMobile && <TableCell>Payment Method</TableCell>}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {loading.sales ? (
+                      <TableRow>
+                        <TableCell colSpan={isMobile ? 3 : 5} align="center">Loading sales data...</TableCell>
+                      </TableRow>
+                    ) : sales.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={isMobile ? 3 : 5} align="center">No sales data found</TableCell>
+                      </TableRow>
+                    ) : (
+                      sales.map((sale, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{sale.date}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500}>
+                              {sale.bus_id}
+                            </Typography>
+                            {isMobile && (
+                              <Typography variant="caption" color="text.secondary">
+                                {sale.route} • {sale.payment_method}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          {!isMobile && <TableCell>{sale.route}</TableCell>}
+                          <TableCell>
+                            <Chip 
+                              label={`$${sale.amount}`} 
+                              size="small" 
+                              color="success" 
+                              variant="filled"
+                            />
+                          </TableCell>
+                          {!isMobile && <TableCell>{sale.payment_method}</TableCell>}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
         </TabPanel>
 
         {/* Buses Tab */}
         <TabPanel value={tabValue} index={4}>
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>Add New Bus</Typography>
-            <form onSubmit={handleAddBus}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={3}>
-                  <TextField label="Registration" name="registration" value={busForm.registration} onChange={handleBusFormChange} required fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField label="Model" name="model" value={busForm.model} onChange={handleBusFormChange} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField label="Capacity" name="capacity" type="number" value={busForm.capacity ?? ''} onChange={handleBusFormChange} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField label="Status" name="status" value={busForm.status} onChange={handleBusFormChange} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField label="Notes" name="notes" value={busForm.notes} onChange={handleBusFormChange} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} md={1}>
-                  <Button type="submit" variant="contained" color="primary" fullWidth disabled={busLoading} sx={{ minWidth: 100 }}>
-                    {busLoading ? 'Adding...' : 'Add Bus'}
-                  </Button>
-                </Grid>
-              </Grid>
-            </form>
-          </Paper>
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Buses List</Typography>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Registration</TableCell>
-                    <TableCell>Model</TableCell>
-                    <TableCell>Capacity</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Notes</TableCell>
-                    <TableCell>Delete</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {buses.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} align="center">No buses found</TableCell></TableRow>
-                  ) : (
-                    buses.map(bus => (
-                      <TableRow key={bus.id}>
-                        <TableCell>{bus.registration}</TableCell>
-                        <TableCell>{bus.model}</TableCell>
-                        <TableCell>{bus.capacity}</TableCell>
-                        <TableCell>{bus.status}</TableCell>
-                        <TableCell>{bus.notes}</TableCell>
-                        <TableCell>
-                          <IconButton color="error" onClick={() => handleDeleteBus(bus.id)} size="small">
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
+          <Stack spacing={3}>
+            <Card elevation={2}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>Add New Bus</Typography>
+                <form onSubmit={handleAddBus}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6} md={3}>
+                      <TextField 
+                        label="Registration" 
+                        name="registration" 
+                        value={busForm.registration} 
+                        onChange={handleBusFormChange} 
+                        required 
+                        fullWidth 
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={2}>
+                      <TextField 
+                        label="Model" 
+                        name="model" 
+                        value={busForm.model} 
+                        onChange={handleBusFormChange} 
+                        fullWidth 
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={2}>
+                      <TextField 
+                        label="Capacity" 
+                        name="capacity" 
+                        type="number" 
+                        value={busForm.capacity ?? ''} 
+                        onChange={handleBusFormChange} 
+                        fullWidth 
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={2}>
+                      <TextField 
+                        label="Status" 
+                        name="status" 
+                        value={busForm.status} 
+                        onChange={handleBusFormChange} 
+                        fullWidth 
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField 
+                        label="Notes" 
+                        name="notes" 
+                        value={busForm.notes} 
+                        onChange={handleBusFormChange} 
+                        fullWidth 
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                      <Button 
+                        type="submit" 
+                        variant="contained" 
+                        color="primary" 
+                        fullWidth 
+                        disabled={busLoading}
+                        size={isMobile ? "medium" : "large"}
+                      >
+                        {busLoading ? 'Adding...' : 'Add Bus'}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </form>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent sx={{ p: 0 }}>
+                <Box sx={{ p: { xs: 2, sm: 3 }, borderBottom: 1, borderColor: 'divider' }}>
+                  <Typography variant="h6" fontWeight={600}>
+                    Buses List ({buses.length})
+                  </Typography>
+                </Box>
+                <TableContainer sx={{ maxHeight: { xs: 400, sm: 500 } }}>
+                  <Table size={isMobile ? "small" : "medium"} stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Registration</TableCell>
+                        {!isMobile && <TableCell>Model</TableCell>}
+                        <TableCell>Capacity</TableCell>
+                        <TableCell>Status</TableCell>
+                        {!isMobile && <TableCell>Notes</TableCell>}
+                        <TableCell align="center">Action</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
+                    </TableHead>
+                    <TableBody>
+                      {buses.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={isMobile ? 4 : 6} align="center">No buses found</TableCell>
+                        </TableRow>
+                      ) : (
+                        buses.map(bus => (
+                          <TableRow key={bus.id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500}>
+                                {bus.registration}
+                              </Typography>
+                              {isMobile && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {bus.model} • {bus.notes}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            {!isMobile && <TableCell>{bus.model}</TableCell>}
+                            <TableCell>
+                              <Chip 
+                                label={bus.capacity} 
+                                size="small" 
+                                color="info" 
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={bus.status} 
+                                size="small" 
+                                color={bus.status === 'active' ? 'success' : 'default'}
+                                variant={bus.status === 'active' ? 'filled' : 'outlined'}
+                              />
+                            </TableCell>
+                            {!isMobile && <TableCell>{bus.notes}</TableCell>}
+                            <TableCell align="center">
+                              <IconButton 
+                                color="error" 
+                                onClick={() => handleDeleteBus(bus.id)} 
+                                size="small"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Stack>
         </TabPanel>
       </Paper>
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onClose={handleCancelDelete}>
-        <Box sx={{ p: 3, minWidth: 300 }}>
-          <Typography variant="h6" gutterBottom>Confirm Delete</Typography>
-          <Typography gutterBottom>
-            Are you sure you want to delete this {confirmDialog.type === 'route' ? 'route' : 'bus'}?
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
-            <Button onClick={handleCancelDelete} color="primary">Cancel</Button>
-            <Button onClick={handleConfirmDelete} color="error" variant="contained">Delete</Button>
-          </Box>
-        </Box>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this {confirmDialog.type}? This action cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 

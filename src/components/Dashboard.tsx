@@ -1,21 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, Grid, TextField, MenuItem, Button, Tabs, Tab, Checkbox, FormControlLabel, Divider, CircularProgress, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import { 
+  Box, 
+  Card, 
+  CardContent, 
+  Typography, 
+  Grid, 
+  TextField, 
+  MenuItem, 
+  Button, 
+  Tabs, 
+  Tab, 
+  Checkbox, 
+  FormControlLabel, 
+  CircularProgress, 
+  TableContainer, 
+  Table, 
+  TableHead, 
+  TableRow, 
+  TableCell, 
+  TableBody,
+  Stack,
+  Chip,
+  Avatar,
+  IconButton,
+  alpha,
+  useTheme,
+  LinearProgress,
+  Tooltip,
+  useMediaQuery
+} from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import WorkIcon from '@mui/icons-material/Work';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import PeopleIcon from '@mui/icons-material/People';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { getTickets, getExpenses, getSales, getBuses, getTrips, getLuggage, getTripExpenses } from '../services/databaseService';
 import dayjs from 'dayjs';
-import type { } from '../types/database.types.ts';
 import { useSupabase } from '../contexts/SupabaseContext';
-
 
 const Dashboard: React.FC = () => {
   const { subscribeToChanges } = useSupabase();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [tab, setTab] = useState(0);
   const [busFilter, setBusFilter] = useState('All Buses');
   const [timeRange, setTimeRange] = useState('Last 24 Hours');
@@ -24,7 +58,7 @@ const Dashboard: React.FC = () => {
   const [activeOnly, setActiveOnly] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Add state for all fetched data
+  // State for all fetched data
   const [allTickets, setAllTickets] = useState<any[]>([]);
   const [allSales, setAllSales] = useState<any[]>([]);
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
@@ -32,7 +66,6 @@ const Dashboard: React.FC = () => {
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [allLuggage, setAllLuggage] = useState<any[]>([]);
   const [allTripExpenses, setAllTripExpenses] = useState<any[]>([]);
-  // Restore loading state
   const [loading, setLoading] = useState(true);
 
   const timeRanges = ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days'];
@@ -58,13 +91,15 @@ const Dashboard: React.FC = () => {
     let buses = allBuses;
     let trips = allTrips;
     const dateThreshold = getDateThreshold();
+    
     // Time range filter
     if (dateThreshold) {
       tickets = tickets.filter(t => new Date(t.created_at || t.date) >= dateThreshold);
       sales = sales.filter(s => new Date(s.created_at || s.date) >= dateThreshold);
       expenses = expenses.filter(e => new Date(e.created_at || e.date) >= dateThreshold);
-      trips = trips.filter(trip => new Date(trip.start_time) >= dateThreshold);
+      trips = trips.filter(trip => new Date(trip.start_time || trip.created_at) >= dateThreshold);
     }
+    
     // Bus filter
     if (busFilter !== 'All Buses') {
       tickets = tickets.filter(t => t.bus_registration === busFilter);
@@ -73,12 +108,14 @@ const Dashboard: React.FC = () => {
       buses = buses.filter(b => b.registration === busFilter);
       trips = trips.filter(trip => trip.bus_registration === busFilter);
     }
+    
     // Active only
     if (activeOnly) {
       const activeTrips = trips.filter(t => t.status === 'active');
       const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
       buses = buses.filter(b => liveBusRegs.has(b.registration));
     }
+    
     // Search filter
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -87,20 +124,23 @@ const Dashboard: React.FC = () => {
         (b.model && b.model.toLowerCase().includes(q))
       );
     }
+    
     return { tickets, sales, expenses, buses, trips };
   };
 
-  const fetchDashboardData = () => {
-    setLoading(true);
-    Promise.all([
-      getTickets(),
-      getSales(),
-      getExpenses(),
-      getBuses(),
-      getTrips(),
-      getLuggage(),
-      getTripExpenses()
-    ]).then(([tickets, sales, expenses, buses, trips, luggage, tripExpenses]) => {
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [tickets, sales, expenses, buses, trips, luggage, tripExpenses] = await Promise.all([
+        getTickets().catch(() => []),
+        getSales().catch(() => []),
+        getExpenses().catch(() => []),
+        getBuses().catch(() => []),
+        getTrips().catch(() => []),
+        getLuggage().catch(() => []),
+        getTripExpenses().catch(() => [])
+      ]);
+      
       setAllTickets(tickets);
       setAllSales(sales);
       setAllExpenses(expenses);
@@ -108,26 +148,35 @@ const Dashboard: React.FC = () => {
       setAllTrips(trips);
       setAllLuggage(luggage);
       setAllTripExpenses(tripExpenses);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   // Recompute metrics and live buses when filters change or data loads
   const { tickets, sales, expenses, buses, trips } = applyFilters();
+  
   // Filter luggage and trip_expenses for filtered trips
   const tripIds = trips.map(t => t.id);
   const luggage = allLuggage.filter(l => l.trip_id && tripIds.includes(l.trip_id));
   const tripExpenses = allTripExpenses.filter(e => e.trip_id && tripIds.includes(e.trip_id));
+  
   useEffect(() => {
     fetchDashboardData();
+    
     // Subscribe to real-time changes
-    const tripsSub = subscribeToChanges('trips', fetchDashboardData);
-    const busesSub = subscribeToChanges('buses', fetchDashboardData);
-    const ticketsSub = subscribeToChanges('tickets', fetchDashboardData);
-    const salesSub = subscribeToChanges('sales', fetchDashboardData);
-    const expensesSub = subscribeToChanges('expenses', fetchDashboardData);
-    const luggageSub = subscribeToChanges('luggage', fetchDashboardData);
-    const tripExpensesSub = subscribeToChanges('trip_expenses', fetchDashboardData);
+    const subscriptions = [
+      subscribeToChanges('trips', fetchDashboardData),
+      subscribeToChanges('buses', fetchDashboardData),
+      subscribeToChanges('tickets', fetchDashboardData),
+      subscribeToChanges('sales', fetchDashboardData),
+      subscribeToChanges('expenses', fetchDashboardData),
+      subscribeToChanges('luggage', fetchDashboardData),
+      subscribeToChanges('trip_expenses', fetchDashboardData)
+    ];
+    
     // Auto-refresh timer
     let interval: NodeJS.Timeout | undefined;
     if (autoRefresh) {
@@ -136,41 +185,29 @@ const Dashboard: React.FC = () => {
       else if (refreshInterval.endsWith('m')) ms = parseInt(refreshInterval) * 60 * 1000;
       interval = setInterval(fetchDashboardData, ms);
     }
+    
     return () => {
-      tripsSub.unsubscribe();
-      busesSub.unsubscribe();
-      ticketsSub.unsubscribe();
-      salesSub.unsubscribe();
-      expensesSub.unsubscribe();
-      luggageSub.unsubscribe();
-      tripExpensesSub.unsubscribe();
+      subscriptions.forEach(sub => sub?.unsubscribe?.());
       if (interval) clearInterval(interval);
     };
   }, [autoRefresh, refreshInterval]);
-  // Recompute on filter change
-  useEffect(() => {
-    // No need to refetch, just recompute
-    // (applyFilters is called on every render)
-  }, [busFilter, timeRange, activeOnly, search]);
 
   // Metrics
   const totalTickets = tickets.length;
   const totalTicketRevenue = tickets.reduce((sum, t) => {
-    const price = typeof t.price === 'number' ? t.price : parseFloat(t.price);
+    const price = typeof t.price === 'number' ? t.price : parseFloat(t.price) || 0;
     const discount = typeof t.discount === 'number' ? t.discount : parseFloat(t.discount) || 0;
     return sum + (price - discount);
   }, 0);
   const totalLuggageRevenue = luggage.reduce((sum, l) => sum + (typeof l.fee === 'number' ? l.fee : parseFloat(l.fee) || 0), 0);
   const totalRevenue = totalTicketRevenue + totalLuggageRevenue;
-  const totalTripExpenses = allTripExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0) + totalTripExpenses;
+  const totalTripExpenses = allTripExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount) || 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount) || 0), 0) + totalTripExpenses;
   const activeTrips = trips.filter(t => t.status === 'active');
   const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
   const liveBuses = buses.filter(b => liveBusRegs.has(b.registration));
   const activeBuses = liveBuses.length;
-
-  // Add luggage and passengers metrics
-  const totalLuggage = tickets.reduce((sum, t) => sum + (t.luggage_count || 0), 0); // If luggage_count is not available, use luggageList.length if you fetch luggage
+  const totalLuggage = tickets.reduce((sum, t) => sum + (t.luggage_count || 0), 0);
   const totalPassengers = totalTickets;
 
   // For each live bus, compute stats
@@ -191,6 +228,7 @@ const Dashboard: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
   const handleExportCSV = () => {
     if (!liveBuses.length) return;
     const headers = Object.keys(liveBuses[0]);
@@ -208,226 +246,592 @@ const Dashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const StatCard = ({ icon, title, value, subtitle, color = 'primary', loading: cardLoading = false }: any) => (
+    <Card sx={{ 
+      height: '100%',
+      transition: 'transform 0.2s',
+      '&:hover': {
+        transform: { xs: 'none', sm: 'translateY(-4px)' },
+        boxShadow: theme.shadows[4]
+      }
+    }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Stack direction="row" alignItems="center" spacing={{ xs: 1, sm: 2 }} mb={2}>
+          <Avatar sx={{ 
+            bgcolor: alpha(theme.palette[color].main, 0.1), 
+            color: `${color}.main`,
+            width: { xs: 32, sm: 40 },
+            height: { xs: 32, sm: 40 }
+          }}>
+            {icon}
+          </Avatar>
+          <Typography 
+            variant="h6" 
+            fontWeight={600}
+            sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}
+          >
+            {title}
+          </Typography>
+        </Stack>
+        
+        {cardLoading ? (
+          <LinearProgress sx={{ mb: 1 }} color={color} />
+        ) : (
+          <>
+            <Typography 
+              variant="h4" 
+              fontWeight={700} 
+              mb={1}
+              sx={{ 
+                fontSize: { xs: '1.25rem', sm: '2.125rem' },
+                color: color !== 'primary' ? `${color}.main` : 'text.primary'
+              }}
+            >
+              {value}
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+            >
+              {subtitle}
+            </Typography>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <Box>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} gutterBottom>
-          <TrendingUpIcon color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} /> Live Bus Dashboard
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          Real-time monitoring of bus operations globally
-        </Typography>
-      </Paper>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+      {/* Dashboard Header */}
+      <Card sx={{ 
+        mb: 3, 
+        background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+        color: 'white',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            alignItems={{ xs: 'flex-start', sm: 'center' }} 
+            spacing={2} 
+            mb={1}
+          >
+            <Avatar sx={{ 
+              bgcolor: 'white', 
+              color: 'primary.main', 
+              width: { xs: 40, sm: 48 }, 
+              height: { xs: 40, sm: 48 } 
+            }}>
+              <DirectionsBusIcon fontSize={isMobile ? 'medium' : 'large'} />
+            </Avatar>
+            <Box>
+              <Typography 
+                variant="h4" 
+                fontWeight={700} 
+                gutterBottom
+                sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
+              >
+                Fleet Dashboard
+              </Typography>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  opacity: 0.9,
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
+              >
+                Real-time monitoring of bus operations globally
+              </Typography>
+            </Box>
+          </Stack>
+          
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            spacing={1} 
+            sx={{ mt: 2, flexWrap: 'wrap' }}
+          >
+            <Chip 
+              icon={<RefreshIcon fontSize="small" />} 
+              label={`Auto-refresh: ${refreshInterval}`} 
+              size="small" 
+              sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                color: 'white',
+                mb: { xs: 1, sm: 0 }
+              }} 
+            />
+            <Chip 
+              icon={<FilterListIcon fontSize="small" />} 
+              label={timeRange} 
+              size="small" 
+              sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                color: 'white',
+                mb: { xs: 1, sm: 0 }
+              }} 
+            />
+            {busFilter !== 'All Buses' && (
+              <Chip 
+                icon={<DirectionsBusIcon fontSize="small" />} 
+                label={busFilter} 
+                size="small" 
+                onDelete={() => setBusFilter('All Buses')}
+                sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  color: 'white',
+                  '& .MuiChip-deleteIcon': {
+                    color: 'rgba(255,255,255,0.7)',
+                  }
+                }} 
+              />
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight={600} gutterBottom>Dashboard Controls</Typography>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
-            <TextField
-              fullWidth
-              label="Search"
-              placeholder="Search buses, drivers..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+      {/* Filter Controls */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            alignItems={{ xs: 'flex-start', sm: 'center' }} 
+            justifyContent="space-between" 
+            mb={2}
+            spacing={2}
+          >
+            <Typography variant="h6" fontWeight={600}>Dashboard Controls</Typography>
+            <Button 
+              startIcon={<RefreshIcon />} 
+              variant="outlined" 
               size="small"
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <TextField
-              select
-              fullWidth
-              label="Bus Filter"
-              value={busFilter}
-              onChange={e => setBusFilter(e.target.value)}
-              size="small"
+              onClick={fetchDashboardData}
             >
-              {['All Buses', ...allBuses.map(b => b.registration)].map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-            </TextField>
+              Refresh Data
+            </Button>
+          </Stack>
+          
+          <Grid container spacing={{ xs: 2, sm: 3 }} alignItems="center">
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Search"
+                placeholder="Search buses, drivers..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                size="small"
+                InputProps={{
+                  startAdornment: <FilterListIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                select
+                fullWidth
+                label="Bus Filter"
+                value={busFilter}
+                onChange={e => setBusFilter(e.target.value)}
+                size="small"
+              >
+                {['All Buses', ...allBuses.map(b => b.registration)].map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                select
+                fullWidth
+                label="Time Range"
+                value={timeRange}
+                onChange={e => setTimeRange(e.target.value)}
+                size="small"
+              >
+                {timeRanges.map((r: string) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                select
+                fullWidth
+                label="Refresh Interval"
+                value={refreshInterval}
+                onChange={e => setRefreshInterval(e.target.value)}
+                size="small"
+              >
+                {refreshIntervals.map((i: string) => <MenuItem key={i} value={i}>{i}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Stack direction="row" spacing={1}>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<DownloadIcon />} 
+                  onClick={handleExportJSON}
+                  size="small"
+                  fullWidth={isMobile}
+                >
+                  JSON
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<DownloadIcon />} 
+                  onClick={handleExportCSV}
+                  size="small"
+                  fullWidth={isMobile}
+                >
+                  CSV
+                </Button>
+              </Stack>
+            </Grid>
+            <Grid item xs={12}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={autoRefresh} 
+                      onChange={e => setAutoRefresh(e.target.checked)}
+                      color="primary"
+                      size="small"
+                    />
+                  }
+                  label="Auto Refresh"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={activeOnly} 
+                      onChange={e => setActiveOnly(e.target.checked)}
+                      color="primary"
+                      size="small"
+                    />
+                  }
+                  label="Active Buses Only"
+                />
+              </Stack>
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={2}>
-            <TextField
-              select
-              fullWidth
-              label="Time Range"
-              value={timeRange}
-              onChange={e => setTimeRange(e.target.value)}
-              size="small"
-            >
-              {timeRanges.map((r: string) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <TextField
-              select
-              fullWidth
-              label="Manual Refresh"
-              value={refreshInterval}
-              onChange={e => setRefreshInterval(e.target.value)}
-              size="small"
-              InputProps={{ endAdornment: <RefreshIcon fontSize="small" /> }}
-            >
-              {refreshIntervals.map((i: string) => <MenuItem key={i} value={i}>{i}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Button variant="outlined" startIcon={<DownloadIcon />} sx={{ mr: 1 }} onClick={handleExportJSON}>Export JSON</Button>
-            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportCSV}>Export CSV</Button>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControlLabel
-              control={<Checkbox checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />}
-              label="Auto Refresh (Fallback)"
-            />
-            <FormControlLabel
-              control={<Checkbox checked={activeOnly} onChange={e => setActiveOnly(e.target.checked)} />}
-              label="Active Only"
-            />
-          </Grid>
-        </Grid>
-      </Paper>
+        </CardContent>
+      </Card>
 
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <ReceiptIcon color="primary" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Total Tickets</Typography>
-              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalTickets}</Typography>
-            </Box>
-          </Paper>
+      {/* Stats Cards */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} mb={3}>
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<ReceiptIcon />}
+            title="Tickets"
+            value={totalTickets.toLocaleString()}
+            subtitle="Total tickets issued"
+            loading={loading}
+          />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TrendingUpIcon color="success" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Total Revenue</Typography>
-              <Typography variant="h6" fontWeight={700} color="success.main">{loading ? <CircularProgress size={20} /> : `$${totalRevenue?.toFixed(2)}`}</Typography>
-            </Box>
-          </Paper>
+        
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<AttachMoneyIcon />}
+            title="Revenue"
+            value={`$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtitle="Total earnings"
+            color="success"
+            loading={loading}
+          />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TrendingDownIcon color="error" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Total Expenses</Typography>
-              <Typography variant="h6" fontWeight={700} color="error.main">{loading ? <CircularProgress size={20} /> : `$${totalExpenses?.toFixed(2)}`}</Typography>
-            </Box>
-          </Paper>
+        
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<TrendingDownIcon />}
+            title="Expenses"
+            value={`$${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtitle="Total costs"
+            color="error"
+            loading={loading}
+          />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <WorkIcon color="secondary" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Total Luggage</Typography>
-              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalLuggage}</Typography>
-            </Box>
-          </Paper>
+        
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<LocalShippingIcon />}
+            title="Luggage"
+            value={totalLuggage.toLocaleString()}
+            subtitle="Items transported"
+            color="secondary"
+            loading={loading}
+          />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <PeopleIcon color="info" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Passengers</Typography>
-              <Typography variant="h6" fontWeight={700}>{loading ? <CircularProgress size={20} /> : totalPassengers}</Typography>
-            </Box>
-          </Paper>
+        
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<PeopleIcon />}
+            title="Passengers"
+            value={totalPassengers.toLocaleString()}
+            subtitle="People transported"
+            color="info"
+            loading={loading}
+          />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <DirectionsBusIcon color="secondary" fontSize="large" />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">Active Buses</Typography>
-              <Typography variant="h6" fontWeight={700}>{activeBuses}</Typography>
-            </Box>
-          </Paper>
+        
+        <Grid item xs={6} sm={6} md={4} lg={2}>
+          <StatCard
+            icon={<DirectionsBusIcon />}
+            title="Active Buses"
+            value={activeBuses.toLocaleString()}
+            subtitle="Buses in operation"
+            loading={loading}
+          />
         </Grid>
       </Grid>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-          <Tab label="Live Buses" />
-          <Tab label="Analytics" />
-          <Tab label="System Info" />
-        </Tabs>
-        <Divider sx={{ mb: 2 }} />
-        {tab === 0 && (
-          <Box sx={{ minHeight: 180 }}>
-            {loading ? (
-              <Box display="flex" alignItems="center" justifyContent="center" height={180}>
-                <CircularProgress />
-              </Box>
-            ) : liveBuses.length === 0 ? (
-              <Box display="flex" alignItems="center" justifyContent="center" height={180} color="text.secondary">
-                <DirectionsBusIcon sx={{ fontSize: 48, mb: 1 }} />
-                <Box ml={2}>No live buses in the last 24 hours</Box>
-              </Box>
-            ) : (
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>Live Buses (last 24h)</Typography>
-                <TableContainer sx={{ overflowX: 'auto' }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Registration</TableCell>
-                        <TableCell>Model</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Last Ticket Time</TableCell>
-                        <TableCell>Passengers</TableCell>
-                        <TableCell>Luggage</TableCell>
-                        <TableCell>Expenses</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {liveBuses.map(bus => {
-                        const tripIds = busToActiveTripIds[bus.registration] || [];
-                        const passengers = tickets.filter(t => t.bus_registration === bus.registration && tripIds.includes(t.trip_id)).length;
-                        const luggageCount = luggage.filter(l => tripIds.includes(l.trip_id)).length;
-                        const expensesSum = tripExpenses.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
-                        // Find last ticket time for this bus
-                        const busTickets = tickets.filter(t => t.bus_registration === bus.registration);
-                        const lastTicket = busTickets.reduce((latest, t) => {
-                          const tDate = new Date(t.created_at || t.date);
-                          return (!latest || tDate > latest) ? tDate : latest;
-                        }, null as Date | null);
-                        return (
-                          <TableRow key={bus.id}>
-                            <TableCell>{bus.registration}</TableCell>
-                            <TableCell>{bus.model}</TableCell>
-                            <TableCell>{bus.status}</TableCell>
-                            <TableCell>{lastTicket ? dayjs(lastTicket).format('YYYY-MM-DD HH:mm') : ''}</TableCell>
-                            <TableCell>{passengers}</TableCell>
-                            <TableCell>{luggageCount}</TableCell>
-                            <TableCell>${expensesSum.toFixed(2)}</TableCell>
+      {/* Tabs and Data Table */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ p: 0 }}>
+          <Tabs 
+            value={tab} 
+            onChange={(_, v) => setTab(v)}
+            variant={isMobile ? 'scrollable' : 'standard'}
+            scrollButtons={isMobile ? 'auto' : false}
+            sx={{ 
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              px: 2
+            }}
+          >
+            <Tab label="Live Buses" />
+            <Tab label="Analytics" />
+            <Tab label="System Info" />
+          </Tabs>
+          
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            {tab === 0 && (
+              <Box sx={{ minHeight: 300 }}>
+                {loading ? (
+                  <Box display="flex" alignItems="center" justifyContent="center" height={300}>
+                    <CircularProgress />
+                  </Box>
+                ) : liveBuses.length === 0 ? (
+                  <Box 
+                    display="flex" 
+                    flexDirection="column"
+                    alignItems="center" 
+                    justifyContent="center" 
+                    height={300} 
+                    sx={{ 
+                      bgcolor: alpha(theme.palette.primary.main, 0.05),
+                      borderRadius: 2,
+                      p: 4,
+                      textAlign: 'center'
+                    }}
+                  >
+                    <DirectionsBusIcon sx={{ fontSize: 64, mb: 2, color: alpha(theme.palette.primary.main, 0.3) }} />
+                    <Typography variant="h6" color="text.secondary" gutterBottom>No active buses found</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      There are no buses active in the selected time period. Try changing your filters or time range.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <Stack 
+                      direction={{ xs: 'column', sm: 'row' }} 
+                      alignItems={{ xs: 'flex-start', sm: 'center' }} 
+                      justifyContent="space-between" 
+                      mb={2}
+                      spacing={2}
+                    >
+                      <Typography variant="h6" fontWeight={600}>
+                        Live Buses ({liveBuses.length})
+                      </Typography>
+                      <Chip 
+                        label={`Last updated: ${dayjs().format('HH:mm:ss')}`}
+                        size="small"
+                        color="default"
+                        variant="outlined"
+                      />
+                    </Stack>
+                    
+                    <TableContainer sx={{ 
+                      borderRadius: 1,
+                      border: `1px solid ${theme.palette.divider}`,
+                      maxHeight: { xs: 300, sm: 400 },
+                      overflowY: 'auto'
+                    }}>
+                      <Table stickyHeader size={isMobile ? 'small' : 'medium'}>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Registration</TableCell>
+                            {!isMobile && <TableCell>Model</TableCell>}
+                            <TableCell>Status</TableCell>
+                            {!isMobile && <TableCell>Last Ticket</TableCell>}
+                            <TableCell align="center">Pass.</TableCell>
+                            {!isMobile && <TableCell align="center">Luggage</TableCell>}
+                            {!isMobile && <TableCell align="right">Expenses</TableCell>}
+                            <TableCell align="center">Actions</TableCell>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Paper>
+                        </TableHead>
+                        <TableBody>
+                          {liveBuses.map(bus => {
+                            const tripIds = busToActiveTripIds[bus.registration] || [];
+                            const passengers = tickets.filter(t => t.bus_registration === bus.registration && tripIds.includes(t.trip_id)).length;
+                            const luggageCount = luggage.filter(l => tripIds.includes(l.trip_id)).length;
+                            const expensesSum = tripExpenses.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount) || 0), 0);
+                            const busTickets = tickets.filter(t => t.bus_registration === bus.registration);
+                            const lastTicket = busTickets.reduce((latest, t) => {
+                              const tDate = new Date(t.created_at || t.date);
+                              return (!latest || tDate > latest) ? tDate : latest;
+                            }, null as Date | null);
+                            
+                            return (
+                              <TableRow key={bus.id} hover>
+                                <TableCell>
+                                  <Stack direction="row" alignItems="center" spacing={1}>
+                                    <DirectionsBusIcon fontSize="small" color="primary" />
+                                    <Typography variant="body2" fontWeight={500}>
+                                      {bus.registration}
+                                    </Typography>
+                                  </Stack>
+                                </TableCell>
+                                {!isMobile && <TableCell>{bus.model}</TableCell>}
+                                <TableCell>
+                                  <Chip 
+                                    label={bus.status} 
+                                    size="small"
+                                    color={bus.status === 'active' ? 'success' : 'default'}
+                                    variant={bus.status === 'active' ? 'filled' : 'outlined'}
+                                  />
+                                </TableCell>
+                                {!isMobile && (
+                                  <TableCell>
+                                    {lastTicket ? (
+                                      <Tooltip title={dayjs(lastTicket).format('YYYY-MM-DD HH:mm:ss')}>
+                                        <Typography variant="body2">
+                                          {dayjs(lastTicket).format('HH:mm')}
+                                        </Typography>
+                                      </Tooltip>
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">
+                                        No tickets
+                                      </Typography>
+                                    )}
+                                  </TableCell>
+                                )}
+                                <TableCell align="center">
+                                  <Chip 
+                                    label={passengers} 
+                                    size="small"
+                                    color={passengers > 0 ? 'info' : 'default'}
+                                    variant={passengers > 0 ? 'filled' : 'outlined'}
+                                  />
+                                </TableCell>
+                                {!isMobile && (
+                                  <TableCell align="center">
+                                    <Chip 
+                                      label={luggageCount} 
+                                      size="small"
+                                      color={luggageCount > 0 ? 'secondary' : 'default'}
+                                      variant={luggageCount > 0 ? 'filled' : 'outlined'}
+                                    />
+                                  </TableCell>
+                                )}
+                                {!isMobile && (
+                                  <TableCell align="right">
+                                    <Typography 
+                                      variant="body2" 
+                                      fontWeight={500}
+                                      color={expensesSum > 0 ? 'error.main' : 'text.secondary'}
+                                    >
+                                      ${expensesSum.toFixed(2)}
+                                    </Typography>
+                                  </TableCell>
+                                )}
+                                <TableCell align="center">
+                                  <IconButton size="small" color="primary">
+                                    <VisibilityIcon fontSize="small" />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                )}
+              </Box>
+            )}
+            
+            {tab === 1 && (
+              <Box 
+                sx={{ 
+                  minHeight: 300, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  borderRadius: 2,
+                  p: 4,
+                  textAlign: 'center'
+                }}
+              >
+                <TrendingUpIcon sx={{ fontSize: 64, mb: 2, color: alpha(theme.palette.primary.main, 0.3) }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Analytics Coming Soon
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Advanced analytics and reporting features will be available in the next update.
+                </Typography>
+              </Box>
+            )}
+            
+            {tab === 2 && (
+              <Box 
+                sx={{ 
+                  minHeight: 300, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  borderRadius: 2,
+                  p: 4,
+                  textAlign: 'center'
+                }}
+              >
+                <RefreshIcon sx={{ fontSize: 64, mb: 2, color: alpha(theme.palette.primary.main, 0.3) }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  System Information Coming Soon
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  System status and health monitoring will be available in the next update.
+                </Typography>
+              </Box>
             )}
           </Box>
-        )}
-        {tab === 1 && (
-          <Box sx={{ minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-            Analytics coming soon...
-          </Box>
-        )}
-        {tab === 2 && (
-          <Box sx={{ minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-            System info and status coming soon...
-          </Box>
-        )}
-      </Paper>
+        </CardContent>
+      </Card>
 
-      <Paper sx={{ p: 2, background: '#111827', color: '#fff', mt: 4, borderRadius: 2 }} elevation={0}>
-        <Typography variant="body2" align="center">
-          Bus Ticketing Admin Dashboard - Real-time monitoring system<br />
-          Receiving data from mobile apps globally • Auto-refresh every 30 seconds
-        </Typography>
-      </Paper>
+      {/* Footer */}
+      <Card sx={{ 
+        p: 2, 
+        background: `linear-gradient(135deg, ${theme.palette.grey[900]} 0%, ${theme.palette.grey[800]} 100%)`, 
+        color: '#fff', 
+        mb: 3,
+        border: 'none'
+      }}>
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          justifyContent="space-between" 
+          alignItems="center"
+          spacing={1}
+        >
+          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+            Bus Pro Admin Dashboard • Real-time monitoring system
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.7, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+            Data refreshes automatically • Last update: {dayjs().format('HH:mm:ss')}
+          </Typography>
+        </Stack>
+      </Card>
     </Box>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

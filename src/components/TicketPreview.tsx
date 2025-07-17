@@ -4,6 +4,15 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import html2canvas from 'html2canvas';
 
+// Add this at the top of the file, before any imports
+// TypeScript declaration for bluetooth on Navigator
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+declare global {
+  interface Navigator {
+    bluetooth?: any;
+  }
+}
+
 interface TicketPreviewProps {
   ticketData: {
     busRegistration: string;
@@ -26,14 +35,6 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
   const [device, setDevice] = useState<BluetoothDevice | null>(null);
   const [characteristic, setCharacteristic] = useState<BluetoothRemoteGATTCharacteristic | null>(null);
 
-  // Add missing type declarations for Bluetooth types if not present
-  // @ts-ignore
-  // eslint-disable-next-line
-  declare global {
-    interface Navigator {
-      bluetooth?: any;
-    }
-  }
   // Fallback types for BluetoothDevice and BluetoothRemoteGATTCharacteristic
   // @ts-ignore
   // eslint-disable-next-line
@@ -119,7 +120,7 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
         >
           <Box textAlign="center" mb={2}>
             <Typography variant="h6" gutterBottom>
-              Bus Pro Ticket
+              Timboon Bus Service Ticket
             </Typography>
             <Typography variant="subtitle2" color="textSecondary">
               Ticket #: {ticketData.ticketNumber}
@@ -183,6 +184,17 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
                 {ticketData.discount && ticketData.discount !== '0.00' ? `-$${ticketData.discount}` : '$0.00'}
               </Typography>
             </Grid>
+            {/* Total Price row */}
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">
+                Total Price
+              </Typography>
+              <Typography variant="body1" gutterBottom fontWeight={700} color="primary.main">
+                ${(
+                  parseFloat(ticketData.price || '0') - (parseFloat(ticketData.discount || '0') || 0)
+                ).toFixed(2)}
+              </Typography>
+            </Grid>
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">
                 Payment Method
@@ -191,37 +203,28 @@ const TicketPreview: React.FC<TicketPreviewProps> = ({ ticketData }) => {
                 {ticketData.paymentMethod.toUpperCase()}
               </Typography>
             </Grid>
-            {ticketData.driverName && (
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Driver
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {ticketData.driverName}
-                </Typography>
-              </Grid>
-            )}
-            {ticketData.conductorName && (
-              <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Conductor
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {ticketData.conductorName}
-                </Typography>
-              </Grid>
-            )}
-            {ticketData.busPhoneNumber && (
-              <Grid item xs={12}>
-                <Typography variant="body2" color="textSecondary">
-                  Bus Phone
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {ticketData.busPhoneNumber}
-                </Typography>
-              </Grid>
-            )}
           </Grid>
+
+          {/* Footer with driver, conductor, phone */}
+          {(ticketData.driverName || ticketData.conductorName || ticketData.busPhoneNumber) && (
+            <Box mt={2} textAlign="center" sx={{ borderTop: '1px dashed #bbb', pt: 1 }}>
+              {ticketData.driverName && (
+                <Typography variant="body2" color="textSecondary">
+                  Driver: <span style={{ color: '#222' }}>{ticketData.driverName}</span>
+                </Typography>
+              )}
+              {ticketData.conductorName && (
+                <Typography variant="body2" color="textSecondary">
+                  Conductor: <span style={{ color: '#222' }}>{ticketData.conductorName}</span>
+                </Typography>
+              )}
+              {ticketData.busPhoneNumber && (
+                <Typography variant="body2" color="textSecondary">
+                  Phone: <span style={{ color: '#222' }}>{ticketData.busPhoneNumber}</span>
+                </Typography>
+              )}
+            </Box>
+          )}
 
           <Box mt={2} textAlign="center">
             <Typography variant="caption" display="block">
@@ -398,6 +401,11 @@ export const LuggageTicketPreview: React.FC<LuggageTicketPreviewProps> = ({ lugg
             <Typography variant="caption" display="block">
               Please keep this ticket for luggage claim.
             </Typography>
+            {luggageData.busPhoneNumber && (
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                Bus Phone: {luggageData.busPhoneNumber}
+              </Typography>
+            )}
           </Box>
         </Paper>
       </div>
