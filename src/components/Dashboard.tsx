@@ -207,7 +207,7 @@ const Dashboard: React.FC = () => {
   const liveBusRegs = new Set(activeTrips.map(t => t.bus_registration));
   const liveBuses = buses.filter(b => liveBusRegs.has(b.registration));
   const activeBuses = liveBuses.length;
-  const totalLuggage = tickets.reduce((sum, t) => sum + (t.luggage_count || 0), 0);
+  const totalLuggage = luggage.length;
   const totalPassengers = totalTickets;
 
   // For each live bus, compute stats
