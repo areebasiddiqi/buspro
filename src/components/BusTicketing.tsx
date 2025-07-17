@@ -435,7 +435,6 @@ const BusTicketing: React.FC = () => {
           <Button variant={printerConnected ? 'contained' : 'outlined'} color={printerConnected ? 'success' : 'primary'} onClick={handleConnectPrinter}>
             {printerConnected ? `Printer: ${printerName || 'Connected'}` : 'Connect Printer'}
           </Button>
-          <Button variant="outlined" color="secondary" sx={{ ml: 1 }} onClick={() => setAdminPanelOpen(true)}>Admin Panel</Button>
         </Box>
       </Paper>
 
@@ -595,8 +594,9 @@ const BusTicketing: React.FC = () => {
                     value={passengerName}
                     onChange={e => setPassengerName(e.target.value)}
                     fullWidth
-                    required
+                    required={!quickMode}
                     size="small"
+                    disabled={quickMode}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -889,33 +889,7 @@ const BusTicketing: React.FC = () => {
       </Paper>
 
       {/* Add dashboard summary above trip control */}
-      {dashboardStats.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h6" fontWeight={700} gutterBottom>Bus Financial Dashboard</Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Bus</TableCell>
-                  <TableCell>Gross</TableCell>
-                  <TableCell>Expenses</TableCell>
-                  <TableCell>Net Profit</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {dashboardStats.map(([bus, stat]) => (
-                  <TableRow key={bus}>
-                    <TableCell>{bus}</TableCell>
-                    <TableCell>${stat.gross.toFixed(2)}</TableCell>
-                    <TableCell>${stat.expenses.toFixed(2)}</TableCell>
-                    <TableCell>${stat.net.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      )}
+      {/* Remove dashboard summary (dashboardStats and related useEffect and Paper/Table) */}
 
       <Dialog open={showTicket} onClose={() => setShowTicket(false)} maxWidth="sm" fullWidth>
         {ticketData && (
@@ -1142,62 +1116,7 @@ const BusTicketing: React.FC = () => {
         </Paper>
       </Dialog>
 
-      <Dialog open={adminPanelOpen} onClose={() => setAdminPanelOpen(false)} maxWidth="md" fullWidth>
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>Admin Panel - Trip History</Typography>
-          <TableContainer sx={{ mb: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Bus</TableCell>
-                  <TableCell>Route</TableCell>
-                  <TableCell>Driver</TableCell>
-                  <TableCell>Start</TableCell>
-                  <TableCell>End</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Tickets</TableCell>
-                  <TableCell>Revenue</TableCell>
-                  <TableCell>Expenses</TableCell>
-                  <TableCell>Profit</TableCell>
-                  <TableCell>Print</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {allTrips.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} align="center">No trips found</TableCell></TableRow>
-                ) : (
-                  allTrips.map((trip, idx) => {
-                    const summary = adminSummary[trip.id] || { tickets: [], luggage: [], expenses: [] };
-                    const totalRevenue = summary.tickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
-                    const totalExpenses = summary.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-                    const profit = totalRevenue - totalExpenses;
-                    return (
-                      <TableRow key={trip.id}>
-                        <TableCell>{trip.bus_registration}</TableCell>
-                        <TableCell>{trip.route}</TableCell>
-                        <TableCell>{trip.driver}</TableCell>
-                        <TableCell>{trip.start_time}</TableCell>
-                        <TableCell>{trip.end_time || '-'}</TableCell>
-                        <TableCell>{trip.status}</TableCell>
-                        <TableCell>{summary.tickets.length}</TableCell>
-                        <TableCell>${totalRevenue.toFixed(2)}</TableCell>
-                        <TableCell>${totalExpenses.toFixed(2)}</TableCell>
-                        <TableCell>${profit.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Button size="small" variant="outlined" onClick={() => handleAdminPrintSummary(trip)}>Print</Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box textAlign="right">
-            <Button variant="contained" color="primary" onClick={() => setAdminPanelOpen(false)}>Close</Button>
-          </Box>
-        </Paper>
-      </Dialog>
+      {/* Remove Admin Panel dialog and all related state/logic */}
     </Container>
   );
 };

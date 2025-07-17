@@ -5,11 +5,12 @@ import { printThermalReceipt } from '../lib/printer-service';
 import dayjs from 'dayjs';
 
 const AdminPanel: React.FC = () => {
-  const [adminTab, setAdminTab] = useState<'trips' | 'assignments'>('trips');
+  const [adminTab, setAdminTab] = useState<'trips' | 'assignments' | 'register'>('trips');
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [adminSummary, setAdminSummary] = useState<{[tripId: string]: {tickets: any[], luggage: any[], expenses: any[]}}>({});
   const [assignments, setAssignments] = useState<any[]>([]);
   const [printerConnected, setPrinterConnected] = useState(false);
+  const [registerRows, setRegisterRows] = useState<any[]>([]);
   // Date range state
   const [startDate, setStartDate] = useState(dayjs().subtract(2, 'year').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
@@ -62,6 +63,44 @@ const AdminPanel: React.FC = () => {
       });
     }
   }, [adminTab, startDate, endDate]);
+
+  // Compute register report when trips/summary or date range changes
+  useEffect(() => {
+    if (adminTab === 'register') {
+      // For each bus, for each day, aggregate data
+      const rows: any[] = [];
+      const busDayMap: {[key: string]: any} = {};
+      allTrips.forEach(trip => {
+        const date = (trip.start_time || '').split('T')[0] || '-';
+        const bus = trip.bus_registration || '-';
+        const key = `${bus}|${date}|${trip.driver || '-'}|${trip.conductor || '-'}`;
+        if (!busDayMap[key]) {
+          busDayMap[key] = {
+            bus,
+            date,
+            driver: trip.driver || '-',
+            conductor: trip.conductor || '-',
+            tickets: 0,
+            revenue: 0,
+            expenses: 0,
+          };
+        }
+        const summary = adminSummary[trip.id] || { tickets: [], luggage: [], expenses: [] };
+        const grossTickets = summary.tickets.reduce((sum, t) => sum + (parseFloat(t.price) - (parseFloat(t.discount) || 0)), 0);
+        const grossLuggage = summary.luggage.reduce((sum, l) => sum + (parseFloat(l.fee) || 0), 0);
+        const gross = grossTickets + grossLuggage;
+        const totalExpenses = summary.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        busDayMap[key].tickets += summary.tickets.length + summary.luggage.length;
+        busDayMap[key].revenue += gross;
+        busDayMap[key].expenses += totalExpenses;
+      });
+      Object.values(busDayMap).forEach((row: any) => {
+        row.net = row.revenue - row.expenses;
+        rows.push(row);
+      });
+      setRegisterRows(rows);
+    }
+  }, [adminTab, allTrips, adminSummary, startDate, endDate]);
 
   const handleAdminPrintSummary = async (trip: any) => {
     if (!printerConnected) {
@@ -128,6 +167,7 @@ const AdminPanel: React.FC = () => {
         <Typography variant="h5" fontWeight={700} gutterBottom sx={{ flex: 1 }}>Admin Panel</Typography>
         <Button variant={adminTab === 'trips' ? 'contained' : 'outlined'} sx={{ mr: 1 }} onClick={() => setAdminTab('trips')}>Trip History</Button>
         <Button variant={adminTab === 'assignments' ? 'contained' : 'outlined'} onClick={() => setAdminTab('assignments')}>Driver/Conductor Assignments</Button>
+        <Button variant={adminTab === 'register' ? 'contained' : 'outlined'} sx={{ ml: 1 }} onClick={() => setAdminTab('register')}>Conductor/Driver Register</Button>
       </Box>
       {/* Date Range Filter */}
       <Box display="flex" alignItems="center" gap={2} mb={2}>
@@ -223,6 +263,40 @@ const AdminPanel: React.FC = () => {
                     <TableCell>{row.conductor}</TableCell>
                     <TableCell>{row.bus}</TableCell>
                     <TableCell>{row.route}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+      {adminTab === 'register' && (
+        <TableContainer sx={{ mb: 2 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Bus</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Driver</TableCell>
+                <TableCell>Conductor</TableCell>
+                <TableCell>Total Tickets</TableCell>
+                <TableCell>Total Revenue</TableCell>
+                <TableCell>Net Profit</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {registerRows.length === 0 ? (
+                <TableRow><TableCell colSpan={7} align="center">No data found</TableCell></TableRow>
+              ) : (
+                registerRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{row.bus}</TableCell>
+                    <TableCell>{row.date}</TableCell>
+                    <TableCell>{row.driver}</TableCell>
+                    <TableCell>{row.conductor}</TableCell>
+                    <TableCell>{row.tickets}</TableCell>
+                    <TableCell>${row.revenue.toFixed(2)}</TableCell>
+                    <TableCell>${row.net.toFixed(2)}</TableCell>
                   </TableRow>
                 ))
               )}
