@@ -141,9 +141,17 @@ export async function disconnectThermalPrinter(): Promise<void> {
   getPrinterInstance().disconnect();
 }
 
-export async function printThermalReceipt(data: ReceiptData): Promise<void> {
+export async function printThermalReceipt(data: ReceiptData & { driverName?: string; conductorName?: string; busPhoneNumber?: string }): Promise<void> {
   // Format a simple ticket for now (customize as needed)
-  const text = `TIMBOON BUS\nPASSENGER TICKET\n==============================\nTicket: ${data.ticketNumber}\nDate: ${data.date}\n------------------------------\nBus: ${data.busRegistration}\n${data.pickupPoint} -> ${data.destination}\n------------------------------\nPassenger: ${data.passengerName}\n------------------------------\nPrice: $${data.price}\nDiscount: $${data.discount}\nTOTAL: $${(parseFloat(data.price) - parseFloat(data.discount)).toFixed(2)}\nMethod: ${data.paymentMethod}\n==============================\nThank you for traveling!\n`;
+  let text = `TIMBOON BUS\nPASSENGER TICKET\n==============================\nTicket: ${data.ticketNumber}\nDate: ${data.date}\n------------------------------\nBus: ${data.busRegistration}\n${data.pickupPoint} -> ${data.destination}\n------------------------------\nPassenger: ${data.passengerName}\n------------------------------\nPrice: $${data.price}\nDiscount: $${data.discount}\nTOTAL: $${(parseFloat(data.price) - parseFloat(data.discount)).toFixed(2)}\nMethod: ${data.paymentMethod}\n`;
+  // Add driver, conductor, phone if present
+  if (data.driverName || data.conductorName || data.busPhoneNumber) {
+    text += '------------------------------\n';
+    if (data.driverName) text += `Driver: ${data.driverName}\n`;
+    if (data.conductorName) text += `Conductor: ${data.conductorName}\n`;
+    if (data.busPhoneNumber) text += `Bus Phone: ${data.busPhoneNumber}\n`;
+  }
+  text += '==============================\nThank you for traveling!\n';
   await getPrinterInstance().printText(text);
 }
 
