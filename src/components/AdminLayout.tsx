@@ -114,7 +114,7 @@ const AdminLayout: React.FC = () => {
           </Avatar>
           <Box>
             <Typography variant="h6" fontWeight={700} color="primary.main">
-              Bus Pro
+              Timboon Bus Service
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Admin Dashboard
@@ -206,7 +206,7 @@ const AdminLayout: React.FC = () => {
             sx={{ alignSelf: 'flex-start' }}
           />
           <Typography variant="caption" color="text.secondary">
-            © 2025 Bus Pro Platform
+            © 2025 Timboon Bus Service Platform
           </Typography>
         </Stack>
       </Box>

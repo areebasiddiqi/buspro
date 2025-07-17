@@ -293,7 +293,7 @@ export const LuggageTicketPreview: React.FC<LuggageTicketPreviewProps> = ({ lugg
         >
           <Box textAlign="center" mb={2}>
             <Typography variant="h6" gutterBottom>
-              Bus Pro Luggage Ticket
+            Timboon Bus Service Luggage Ticket
             </Typography>
             <Typography variant="subtitle2" color="textSecondary">
               Ticket #: {luggageData.ticketNumber}

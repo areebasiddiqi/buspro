@@ -823,7 +823,7 @@ const Dashboard: React.FC = () => {
           spacing={1}
         >
           <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-            Bus Pro Admin Dashboard • Real-time monitoring system
+          Timboon Bus Service Admin Dashboard • Real-time monitoring system
           </Typography>
           <Typography variant="caption" sx={{ opacity: 0.7, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
             Data refreshes automatically • Last update: {dayjs().format('HH:mm:ss')}
